@@ -48,7 +48,7 @@ function AppContent() {
     <div className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
       <Navbar />
       <Routes>
-        <Route path="/Exam-Prep-Platform" element={<HomePage />} />
+        <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/pricing" element={<PricingPage />} />
