@@ -2,7 +2,7 @@
   "name": "@figma/my-make-file",
   "private": true,
   "version": "0.0.1",
-  "homepage": "https://github.com/Kanak29p/Exam-Prep-Platform",
+ "homepage": "https://kanak29p.github.io/Exam-Prep-Platform/",
   "type": "module",
   "scripts": {
     "build": "vite build",
