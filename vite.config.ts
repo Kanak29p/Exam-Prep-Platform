@@ -24,7 +24,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
-  base: '/Exam-Prep-Platform/',
+  base: '/',
   resolve: {
     alias: {
       // Alias @ to the src directory
