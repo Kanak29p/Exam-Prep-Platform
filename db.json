@@ -1,0 +1,108 @@
+{
+  "users": [
+    {
+      "name": "kanak",
+      "email": "k29paliwal@gmail.com",
+      "password": "kanak2903",
+      "id": "NVd2xwYY6I0"
+    },
+    {
+      "name": "tara",
+      "email": "tara29rara@gmail.com",
+      "password": "tara29rara@gmail.com",
+      "id": "LgUNp0BErG0"
+    },
+    {
+      "name": "Tara",
+      "email": "tara29rara@gmail.com",
+      "password": "google-auth",
+      "avatar": "https://lh3.googleusercontent.com/a/ACg8ocIxTSPivIsTqbbDjSumFM2SIfi4x0z7Ry9NofXxpgWZJKbLvg=s96-c",
+      "id": "Sdy4kzbJQT8"
+    },
+    {
+      "name": "Tara",
+      "email": "tara29rara@gmail.com",
+      "password": "google-auth",
+      "avatar": "https://lh3.googleusercontent.com/a/ACg8ocIxTSPivIsTqbbDjSumFM2SIfi4x0z7Ry9NofXxpgWZJKbLvg=s96-c",
+      "id": "sW3CNdl0W3A"
+    },
+    {
+      "name": "Tara",
+      "email": "tara29rara@gmail.com",
+      "password": "google-auth",
+      "avatar": "https://lh3.googleusercontent.com/a/ACg8ocIxTSPivIsTqbbDjSumFM2SIfi4x0z7Ry9NofXxpgWZJKbLvg=s96-c",
+      "id": "jlmPi7HnStE"
+    },
+    {
+      "name": "Tara",
+      "email": "tara29rara@gmail.com",
+      "password": "google-auth",
+      "avatar": "https://lh3.googleusercontent.com/a/ACg8ocIxTSPivIsTqbbDjSumFM2SIfi4x0z7Ry9NofXxpgWZJKbLvg=s96-c",
+      "id": "ZcuRWY-zFno"
+    },
+    {
+      "name": "Tara",
+      "email": "tara29rara@gmail.com",
+      "password": "google-auth",
+      "avatar": "https://lh3.googleusercontent.com/a/ACg8ocIxTSPivIsTqbbDjSumFM2SIfi4x0z7Ry9NofXxpgWZJKbLvg=s96-c",
+      "id": "-8MGhHpBURo"
+    },
+    {
+      "name": "Kanak Paliwal",
+      "email": "k29paliwal@gmail.com",
+      "password": "google-auth",
+      "avatar": "https://lh3.googleusercontent.com/a/ACg8ocJj2vHe2KFGEkUD2dVY_2zCw3lH-R6yAi94Cj_6L5xCBShUSPU=s96-c",
+      "id": "IUlu4QOMaC4"
+    },
+    {
+      "name": "Tara",
+      "email": "tara29rara@gmail.com",
+      "password": "google-auth",
+      "avatar": "https://lh3.googleusercontent.com/a/ACg8ocIxTSPivIsTqbbDjSumFM2SIfi4x0z7Ry9NofXxpgWZJKbLvg=s96-c",
+      "id": "GogNN-Y8p40"
+    },
+    {
+      "name": "Tara",
+      "email": "tara29rara@gmail.com",
+      "password": "google-auth",
+      "avatar": "https://lh3.googleusercontent.com/a/ACg8ocIxTSPivIsTqbbDjSumFM2SIfi4x0z7Ry9NofXxpgWZJKbLvg=s96-c",
+      "id": "sGDY0lQMHCU"
+    },
+    {
+      "name": "Tara",
+      "email": "tara29rara@gmail.com",
+      "password": "google-auth",
+      "avatar": "https://lh3.googleusercontent.com/a/ACg8ocIxTSPivIsTqbbDjSumFM2SIfi4x0z7Ry9NofXxpgWZJKbLvg=s96-c",
+      "id": "zRwyu-QYmdo"
+    },
+    {
+      "name": "Tara",
+      "email": "tara29rara@gmail.com",
+      "password": "google-auth",
+      "avatar": "https://lh3.googleusercontent.com/a/ACg8ocIxTSPivIsTqbbDjSumFM2SIfi4x0z7Ry9NofXxpgWZJKbLvg=s96-c",
+      "id": "iHEdHy3oSKk"
+    },
+    {
+      "name": "Tara",
+      "email": "tara29rara@gmail.com",
+      "password": "google-auth",
+      "avatar": "https://lh3.googleusercontent.com/a/ACg8ocIxTSPivIsTqbbDjSumFM2SIfi4x0z7Ry9NofXxpgWZJKbLvg=s96-c",
+      "id": "fmMQfpouSTY"
+    },
+    {
+      "name": "Kanak Paliwal",
+      "email": "k29paliwal@gmail.com",
+      "password": "google-auth",
+      "avatar": "https://lh3.googleusercontent.com/a/ACg8ocJj2vHe2KFGEkUD2dVY_2zCw3lH-R6yAi94Cj_6L5xCBShUSPU=s96-c",
+      "id": "GUPtv1pOw04"
+    },
+    {
+      "name": "Tara",
+      "email": "tara29rara@gmail.com",
+      "password": "google-auth",
+      "avatar": "https://lh3.googleusercontent.com/a/ACg8ocIxTSPivIsTqbbDjSumFM2SIfi4x0z7Ry9NofXxpgWZJKbLvg=s96-c",
+      "id": "1FUU4WZIIUA"
+    }
+  ],
+  "$schema": "./node_modules/json-server/schema.json"
+}
