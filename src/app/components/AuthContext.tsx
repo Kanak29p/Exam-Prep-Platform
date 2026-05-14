@@ -1,6 +1,8 @@
 import React, { createContext,  useContext, useState, ReactNode, useEffect } from 'react';
 //import { onAuthStateChanged } from "firebase/auth";
 //import { auth } from "../../firebase";
+import { signInWithPopup } from "firebase/auth";
+import { auth, provider } from "../../firebase";
 
 interface User {
   id: string;
@@ -16,7 +18,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   signup: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
-  loginWithGoogle: (firebaseUser: any) => void;
+  loginWithGoogle: () => Promise<void>;
   isAuthenticated: boolean;
   loading: boolean;
 }
@@ -111,28 +113,97 @@ setUser({
 
   };
 
-  const loginWithGoogle = (firebaseUser: any) => {
-  setUser({
-    id: firebaseUser.uid,
-    name: firebaseUser.displayName || "",
-    email: firebaseUser.email || "",
-    role: "student",
-    avatar: firebaseUser.photoURL || "",
-    subscriptionPlan: "free"
-  });
+  const loginWithGoogle = async () => {
+
+  try {
+
+    setLoading(true);
+
+    const result = await signInWithPopup(auth, provider);
+
+    const googleUser = result.user;
+
+    // save user in database
+    const response=await fetch("http://localhost:5000/api/auth/signup", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        name: googleUser.displayName,
+        email: googleUser.email,
+        password: googleUser.uid
+      })
+    });
+
+    const data = await response.json();
+
+// if user already exists, don't stop app
+if (!response.ok && data.message !== "User already exists") {
+  throw new Error(data.message);
+}
+
+    // set frontend user state
+    setUser({
+      id: googleUser.uid,
+      name: googleUser.displayName || "",
+      email: googleUser.email || "",
+      role: "student",
+      avatar: googleUser.photoURL || "",
+      subscriptionPlan: "free"
+    });
+
+  } catch (error) {
+
+    console.log("Google login error:", error);
+    throw error;
+
+  } finally {
+
+    setLoading(false);
+
+  }
 };
 
   const signup = async (name: string, email: string, password: string) => {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setUser({
-      id: '1',
-      name,
-      email,
-      role: 'student',
-      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}`,
-      subscriptionPlan: 'free'
+  try {
+    setLoading(true);
+
+    const response = await fetch("http://localhost:5000/api/auth/signup", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        name,
+        email,
+        password
+      })
     });
-  };
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Signup failed");
+    }
+
+    // set user in frontend state
+    setUser({
+      id: data.user.id,
+      name: data.user.name,
+      email: data.user.email,
+      role: "student",
+      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}`,
+      subscriptionPlan: "free"
+    });
+
+  } catch (error) {
+    console.log("Signup error:", error);
+    throw error;
+  } finally {
+    setLoading(false);
+  }
+};
 
   const logout = () => {
     setUser(null);

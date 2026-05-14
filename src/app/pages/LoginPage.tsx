@@ -3,8 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { Mail, Lock, Eye, EyeOff, Chrome } from "lucide-react";
 import { useAuth } from "../components/AuthContext";
 import { toast } from "sonner";
-import { signInWithPopup } from "firebase/auth";
-import { auth, provider } from "../../firebase";
 
 export function LoginPage() {
   const [email, setEmail] = useState("");
@@ -35,19 +33,24 @@ export function LoginPage() {
   };
 
   const handleGoogleLogin = async () => {
-    try {
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
 
-      loginWithGoogle(user); // 👈 THIS is the missing bridge
+  try {
 
-      toast.success("Google Login Successful!");
-      navigate("/dashboard");
-    } catch (error) {
-      console.log(error);
-      toast.error("Google Login Failed");
-    }
-  };
+    await loginWithGoogle();
+
+    toast.success("Google Login Successful!");
+
+    navigate("/dashboard");
+
+  } catch (error) {
+
+    console.log(error);
+
+    toast.error("Google Login Failed");
+
+  }
+
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center px-4 pt-20">

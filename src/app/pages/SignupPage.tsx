@@ -10,9 +10,10 @@ export function SignupPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const { signup } = useAuth();
+  
+  const { signup, loading, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
+
 
   
 
@@ -30,40 +31,37 @@ export function SignupPage() {
       return;
     }
 
-    setLoading(true);
-
-    
-
     try {
       await signup(name, email, password);
       toast.success('Account created successfully!');
       navigate('/dashboard');
-      
-      await fetch("http://localhost:3000/users", {
-
-  method: "POST",
-
-  headers: {
-    "Content-Type": "application/json"
-  },
-
-  body: JSON.stringify({
-    name,
-    email,
-    password
-  })
-});
 
     } catch (error) {
+      console.log(error)
       toast.error('Failed to create account');
-    } finally {
-      setLoading(false);
-    }
-
-    
-
+    } 
 
   };
+
+  const handleGoogleSignup = async () => {
+
+  try {
+
+    await loginWithGoogle();
+
+    toast.success("Google signup successful!");
+
+    navigate("/dashboard");
+
+  } catch (error) {
+
+    console.log(error);
+
+    toast.error("Google signup failed");
+
+  }
+
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center px-4 pt-20">
@@ -177,7 +175,7 @@ export function SignupPage() {
               </div>
             </div>
 
-            <button className="mt-4 w-full py-3 border border-gray-300 dark:border-gray-600 rounded-lg flex items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+            <button onClick={handleGoogleSignup} className="mt-4 w-full py-3 border border-gray-300 dark:border-gray-600 rounded-lg flex items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
               <Chrome className="h-5 w-5" />
               Google
             </button>
