@@ -69,7 +69,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });*/
 
   const response = await fetch(
-  "http://localhost:5000/api/auth/login",
+  "https://exam-prep-platform-backend.onrender.com//api/auth/login",
   {
     method: "POST",
 
@@ -124,7 +124,7 @@ setUser({
     const googleUser = result.user;
 
     // save user in database
-    const response=await fetch("http://localhost:5000/api/auth/signup", {
+    const response=await fetch("https://exam-prep-platform-backend.onrender.com//api/auth/signup", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -169,7 +169,7 @@ if (!response.ok && data.message !== "User already exists") {
   try {
     setLoading(true);
 
-    const response = await fetch("http://localhost:5000/api/auth/signup", {
+    const response = await fetch("https://exam-prep-platform-backend.onrender.com//api/auth/signup", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
