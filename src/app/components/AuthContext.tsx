@@ -16,6 +16,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   signup: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
+  loginWithGoogle: (firebaseUser: any) => void;
   isAuthenticated: boolean;
   loading: boolean;
 }
@@ -64,28 +65,41 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=John',
       subscriptionPlan: 'premium'
     });*/
-    const response = await fetch(
-    `http://localhost:3000/users?email=${email}&password=${password}`
-  );
 
-  const data = await response.json();
+  const response = await fetch(
+  "http://localhost:5000/api/auth/login",
+  {
+    method: "POST",
 
-  if (data.length === 0) {
+    headers: {
+      "Content-Type": "application/json",
+    },
 
-    throw new Error("Invalid credentials");
-
+    body: JSON.stringify({
+      email,
+      password,
+    }),
   }
+);
 
-  const loggedUser = data[0];
+const data = await response.json();
 
-  setUser({
-    id: loggedUser.id,
-    name: loggedUser.name,
-    email: loggedUser.email,
-    role: 'student',
-    avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${loggedUser.name}`,
-    subscriptionPlan: 'free'
-  });
+if (!response.ok) {
+
+  throw new Error(data.message);
+
+}
+
+localStorage.setItem("token", data.token);
+
+setUser({
+  id: data.user?.id || "1",
+  name: data.user?.name || email.split("@")[0],
+  email: email,
+  role: "student",
+  avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`,
+  subscriptionPlan: "free",
+});
     }
     catch (error) {
     console.log("Login error:", error);
@@ -123,6 +137,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = () => {
     setUser(null);
   };
+console.log(user,"useruseruseruseruseruseruser");
 
   return (
     <AuthContext.Provider value={{ user, login, signup, logout, loginWithGoogle, isAuthenticated: !!user, loading }}>

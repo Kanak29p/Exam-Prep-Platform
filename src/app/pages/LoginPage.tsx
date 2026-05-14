@@ -18,36 +18,36 @@ export function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
+    
     try {
       await login(email, password);
+
       toast.success("Login successful!");
+
       navigate("/dashboard");
     } catch (error) {
+      console.log(error);
+
       toast.error("Invalid credentials");
     } finally {
       setLoading(false);
     }
-    // await login(email, password);
-    const response = await fetch(
-      `http://localhost:3000/users?email=${email}&password=${password}`,
-    );
   };
 
   const handleGoogleLogin = async () => {
-  try {
-    const result = await signInWithPopup(auth, provider);
-    const user = result.user;
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
 
-    loginWithGoogle(user);   // 👈 THIS is the missing bridge
+      loginWithGoogle(user); // 👈 THIS is the missing bridge
 
-    toast.success("Google Login Successful!");
-    navigate("/dashboard");
-  } catch (error) {
-    console.log(error);
-    toast.error("Google Login Failed");
-  }
-};
+      toast.success("Google Login Successful!");
+      navigate("/dashboard");
+    } catch (error) {
+      console.log(error);
+      toast.error("Google Login Failed");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center px-4 pt-20">

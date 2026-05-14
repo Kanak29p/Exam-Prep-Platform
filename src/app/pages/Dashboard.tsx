@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { TrendingUp, Target, Award, Clock, BookOpen, Mic, Edit, Headphones, Calendar, Trophy, BarChart3, Zap } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 import { useAuth } from '../components/AuthContext';
+import { useEffect } from 'react';
 
 const scoreData = [
   { date: 'Jan 15', score: 45 },
@@ -31,6 +32,42 @@ const skillRadar = [
 
 export function Dashboard() {
   const { user } = useAuth();
+
+  console.log(user);
+
+  useEffect(() => {
+
+  const fetchDashboard = async () => {
+
+    try {
+
+      const token = localStorage.getItem("token");
+
+      const response = await fetch(
+        "http://localhost:5000/api/auth/dashboard",
+        {
+          method: "GET",
+
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      console.log(data);
+
+    } catch (error) {
+
+      console.log(error);
+
+    }
+  };
+
+  fetchDashboard();
+
+}, []);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pt-20 px-4 pb-12">
@@ -240,3 +277,4 @@ export function Dashboard() {
     </div>
   );
 }
+
