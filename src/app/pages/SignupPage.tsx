@@ -3,6 +3,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { Mail, Lock, User, Eye, EyeOff, Chrome } from "lucide-react";
 import { useAuth } from "../components/AuthContext";
 import { toast } from "sonner";
+import { EmailAuthProvider, linkWithCredential } from "firebase/auth";
+
+import { auth } from "../../firebase";
 
 export function SignupPage() {
   const [name, setName] = useState("");
@@ -34,45 +37,61 @@ export function SignupPage() {
     }
 
     try {
-
       // GOOGLE USER FLOW
-  if (isGoogleUser) {
+      if (isGoogleUser) {
+        // const response = await fetch(
+        //   "http://localhost:5000/api/auth/set-password",
+        //   {
+        //     method: "POST",
+        //     headers: {
+        //       "Content-Type": "application/json",
+        //     },
+        //     body: JSON.stringify({
+        //       email: googleEmail,
+        //       password: password,
+        //     }),
+        //   }
+        // );
 
-    const response = await fetch(
-      "http://localhost:5000/api/auth/set-password",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: googleEmail,
-          password: password,
-        }),
+        // const data = await response.json();
+
+        // if (!response.ok) {
+        //   throw new Error(data.message || "Failed to save password");
+        // }
+
+        // toast.success("Password set successfully!");
+
+        // navigate("/dashboard");
+
+        // return;
+
+        const currentUser = auth.currentUser;
+
+        if (!currentUser || !currentUser.email) {
+          throw new Error("Google user not found");
+        }
+
+        const credential = EmailAuthProvider.credential(
+          currentUser.email,
+          password,
+        );
+
+        await linkWithCredential(currentUser, credential);
+
+        toast.success("Password set successfully!");
+
+        navigate("/dashboard");
+
+        return;
       }
-    );
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || "Failed to save password");
-    }
-
-    toast.success("Password set successfully!");
-
-    navigate("/dashboard");
-
-    return;
-  }
 
       await signup(name, email, password);
 
-toast.success("Verification email sent!");
+      toast.success("Verification email sent!");
 
-setRegisteredEmail(email);
+      setRegisteredEmail(email);
 
-setIsVerificationPending(true);
-
+      setIsVerificationPending(true);
     } catch (error) {
       console.log(error);
       toast.error("Failed to create account");
@@ -85,9 +104,27 @@ setIsVerificationPending(true);
 
       toast.success("Google signup successful!");
 
-      setIsGoogleUser(true);
+      if (data.isNewUser) {
 
-      setGoogleEmail(data.email);
+  setIsGoogleUser(true);
+
+  setGoogleEmail(data.email);
+
+  setName(data.name || "");
+
+  toast.success(
+    "Google signup successful!"
+  );
+
+} else {
+
+  toast.success(
+    "Welcome back!"
+  );
+
+  navigate("/login");
+}
+      setName(data.name || "");
     } catch (error) {
       console.log(error);
 
@@ -109,40 +146,30 @@ setIsVerificationPending(true);
           </div>
 
           {isVerificationPending ? (
+            <div className="text-center space-y-6">
+              <div className="text-6xl">📧</div>
 
-  <div className="text-center space-y-6">
-    <div className="text-6xl">📧</div>
+              <h2 className="text-2xl font-bold">Verify Your Email</h2>
 
-    <h2 className="text-2xl font-bold">
-      Verify Your Email
-    </h2>
+              <p className="text-gray-600 dark:text-gray-400">
+                We sent a verification link to
+              </p>
 
-    <p className="text-gray-600 dark:text-gray-400">
-      We sent a verification link to
-    </p>
+              <p className="font-semibold text-blue-600">{registeredEmail}</p>
 
-    <p className="font-semibold text-blue-600">
-      {registeredEmail}
-    </p>
+              <p className="text-sm text-gray-500">
+                Click the link in your inbox, then return here and login.
+              </p>
 
-    <p className="text-sm text-gray-500">
-      Click the link in your inbox, then return here and login.
-    </p>
-
-    <Link to="/login">
-      <button
-        className="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:shadow-lg transition-all"
-      >
-        Go To Login
-      </button>
-    </Link>
-  </div>
-
-) : !isGoogleUser ? (
-              <>
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            
+              <Link to="/login">
+                <button className="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:shadow-lg transition-all">
+                  Go To Login
+                </button>
+              </Link>
+            </div>
+          ) : !isGoogleUser ? (
+            <>
+              <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
                   <label className="block text-sm font-medium mb-2">
                     Full Name
@@ -250,45 +277,42 @@ setIsVerificationPending(true);
                 >
                   {loading ? "Creating account..." : "Create Account"}
                 </button>
-              
-          </form >
+              </form>
 
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
+              <div className="mt-6">
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="px-2 bg-white dark:bg-gray-800 text-gray-500">
+                      Or sign up with
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleGoogleSignup}
+                  className="mt-4 w-full py-3 border border-gray-300 dark:border-gray-600 rounded-lg flex items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <Chrome className="h-5 w-5" />
+                  Google
+                </button>
               </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white dark:bg-gray-800 text-gray-500">
-                  Or sign up with
-                </span>
-              </div>
-            </div>
 
-            <button
-              onClick={handleGoogleSignup}
-              className="mt-4 w-full py-3 border border-gray-300 dark:border-gray-600 rounded-lg flex items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            >
-              <Chrome className="h-5 w-5" />
-              Google
-            </button>
-          </div>
-
-          <p className="mt-6 text-center text-gray-600 dark:text-gray-400">
-            Already have an account?{" "}
-            <Link
-              to="/login"
-              className="text-blue-600 font-semibold hover:underline"
-            >
-              Login
-            </Link>
-          </p>
-
-          </>
-            ) : (
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <p className="mt-6 text-center text-gray-600 dark:text-gray-400">
+                Already have an account?{" "}
+                <Link
+                  to="/login"
+                  className="text-blue-600 font-semibold hover:underline"
+                >
+                  Login
+                </Link>
+              </p>
+            </>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-6">
               <>
-              
                 <div className="text-center mb-6">
                   <h2 className="text-2xl font-bold">Set Your Password</h2>
                 </div>
@@ -351,13 +375,8 @@ setIsVerificationPending(true);
                   {loading ? "Saving Password..." : "Save Password"}
                 </button>
               </>
-              </form>
-            )}
-
-
-
-
-
+            </form>
+          )}
         </div>
       </div>
     </div>

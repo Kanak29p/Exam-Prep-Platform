@@ -7,8 +7,13 @@ import React, {
 } from "react";
 //import { onAuthStateChanged } from "firebase/auth";
 //import { auth } from "../../firebase";
-import { signInWithPopup, sendEmailVerification,createUserWithEmailAndPassword, signInWithEmailAndPassword,
-  signOut, } from "firebase/auth";
+import {
+  signInWithPopup,
+  sendEmailVerification,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+} from "firebase/auth";
 import { auth, provider } from "../../firebase";
 
 interface User {
@@ -62,26 +67,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       setLoading(true);
 
-       // 1. Login with Firebase first
-    const userCredential = await signInWithEmailAndPassword(
-      auth,
-      email,
-      password
-    );
+      // 1. Login with Firebase first
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password,
+      );
 
-    const firebaseUser = userCredential.user;
+      const firebaseUser = userCredential.user;
 
-    // 2. Check email verification
-    if (!firebaseUser.emailVerified) {
-      await signOut(auth);
+      // 2. Check email verification
+      if (!firebaseUser.emailVerified) {
+        await signOut(auth);
 
-      throw new Error("Please verify your email before login");
-    }
+        throw new Error("Please verify your email before login");
+      }
+
+      const firebaseToken = await firebaseUser.getIdToken();
 
       const response = await fetch("http://localhost:5000/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ firebaseToken, }),
       });
 
       const data = await response.json();
@@ -132,12 +139,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const signupData = await signupRes.json();
 
-      if (!signupRes.ok) {
-        // allow already existing users
-        if (signupData.message !== "User already exists") {
-          throw new Error(signupData.message || "Google Signup failed");
-        }
-      }
+      // if (!signupRes.ok) {
+      //   // allow already existing users
+      //   if (signupData.message !== "User already exists") {
+      //     throw new Error(signupData.message || "Google Signup failed");
+      //   }
+      // }
 
       // 2. Create user object directly from Google
       const userData: User = {
@@ -152,13 +159,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         subscriptionPlan: "free",
       };
 
-      // store session
-      localStorage.setItem("user", JSON.stringify(userData));
+      // // store session
+      // localStorage.setItem("user", JSON.stringify(userData));
 
-      // set state
-      setUser(userData);
+      // // set state
+      // setUser(userData);
 
-      return userData;
+      const firebaseToken =
+  await googleUser.getIdToken();
+
+
+      return {
+        ...userData,
+        isNewUser: signupData.isNewUser,
+        firebaseToken,
+      };
+
     } catch (error) {
       console.error("Google login error:", error);
       throw error;
@@ -166,40 +182,48 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
     }
   };
-const signup = async (name: string, email: string, password: string) => {
-  try {
-    setLoading(true);
+  const signup = async (name: string, email: string, password: string) => {
+    try {
+      setLoading(true);
 
-    // 1. Save user in YOUR backend database
-    const response = await fetch("http://localhost:5000/api/auth/signup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password }),
-    });
+      // 1. Create Firebase user
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password,
+      );
 
-    const data = await response.json();
+      // 2. Send verification email
+      await sendEmailVerification(userCredential.user);
 
-    if (!response.ok) {
-      throw new Error(data.message || "Signup failed");
+      // 3. Sign out until verified
+      await signOut(auth);
+
+      // 3. Save user in backend
+      const response = await fetch("http://localhost:5000/api/auth/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name,
+          email,
+          password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Signup failed");
+      }
+    } catch (error) {
+      console.error("Signup error:", error);
+      throw error;
+    } finally {
+      setLoading(false);
     }
-
-    // 2. Create Firebase auth user
-    const userCredential = await createUserWithEmailAndPassword(
-      auth,
-      email,
-      password
-    );
-
-    // 3. Send verification email
-    await sendEmailVerification(userCredential.user);
-
-  } catch (error) {
-    console.error("Signup error:", error);
-    throw error;
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const logout = () => {
     localStorage.removeItem("token");

@@ -16,41 +16,55 @@ export function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    
+
     try {
       await login(email, password);
 
       toast.success("Login successful!");
 
       navigate("/dashboard");
-    } catch (error) {
+    } catch (error: any) {
       console.log(error);
 
-      toast.error("Invalid credentials");
+      toast.error(error.message || "Login failed");
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleLogin = async () => {
+    try {
+      const userData = await loginWithGoogle();
 
-  try {
+      const response = await fetch("http://localhost:5000/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+  firebaseToken: userData.firebaseToken,
+}),
+      });
 
-    await loginWithGoogle();
+      const data = await response.json();
 
-    toast.success("Google Login Successful!");
+      if (!response.ok) {
+        throw new Error(data.message || "Login failed");
+      }
 
-    navigate("/dashboard");
+      localStorage.setItem("token", data.token);
 
-  } catch (error) {
+      localStorage.setItem("user", JSON.stringify(userData));
 
-    console.log(error);
+      toast.success("Google Login Successful!");
 
-    toast.error("Google Login Failed");
+      navigate("/dashboard");
+    } catch (error) {
+      console.log(error);
 
-  }
-
-};
+      toast.error("Google Login Failed");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center px-4 pt-20">
