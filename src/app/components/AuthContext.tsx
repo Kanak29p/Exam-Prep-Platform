@@ -18,7 +18,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   signup: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
-  loginWithGoogle: () => Promise<void>;
+  loginWithGoogle: () => Promise<any>;
   isAuthenticated: boolean;
   loading: boolean;
 }
@@ -108,12 +108,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const signupData = await signupRes.json();
       
-      if (!signupRes.ok && signupData.message !== "User already exists") {
-        throw new Error(signupData.message || "Google Signup failed");
-      }
+      if (!signupRes.ok) {
 
-      // 2. Now login to get the token
-      await login(googleUser.email!, googleUser.uid);
+   // allow already existing users
+   if (signupData.message !== "User already exists") {
+      throw new Error(signupData.message || "Google Signup failed");
+   }
+}
+
+      // 2. Create user object directly from Google
+const userData: User = {
+  id: googleUser.uid,
+  name: googleUser.displayName || googleUser.email?.split("@")[0] || "User",
+  email: googleUser.email!,
+  role: "student",
+  avatar: googleUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${googleUser.email}`,
+  subscriptionPlan: "free",
+};
+
+// store session
+localStorage.setItem("user", JSON.stringify(userData));
+
+// set state
+setUser(userData);
+
+return userData;
 
     } catch (error) {
       console.error("Google login error:", error);
