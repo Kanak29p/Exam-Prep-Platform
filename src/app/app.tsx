@@ -24,6 +24,8 @@ import { LeaderboardPage } from "./pages/LeaderboardPage";
 import { LiveClassesPage } from "./pages/LiveClassesPage";
 import { ForumPage } from "./pages/ForumPage";
 import { ProfilePage } from "./pages/ProfilePage";
+import { PageErrorBoundary } from "./components/PageErrorBoundary";
+import { NotFoundPage } from "./pages/NotFoundPage";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, loading } = useAuth();
@@ -58,16 +60,39 @@ function AppContent() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/pricing" element={<PricingPage />} />
-        <Route path="/leaderboard" element={<LeaderboardPage />} />
-        <Route path="/live-classes" element={<LiveClassesPage />} />
-        <Route path="/forum" element={<ForumPage />} />
+        <Route
+          path="/leaderboard"
+          element={
+            <PageErrorBoundary>
+              <LeaderboardPage />
+            </PageErrorBoundary>
+          }
+        />
+        <Route
+          path="/live-classes"
+          element={
+            <PageErrorBoundary>
+              <LiveClassesPage />
+            </PageErrorBoundary>
+          }
+        />
+        <Route
+          path="/forum"
+          element={
+            <PageErrorBoundary>
+              <ForumPage />
+            </PageErrorBoundary>
+          }
+        />
 
         <Route
           path="/dashboard"
           element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
+            <PageErrorBoundary>
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            </PageErrorBoundary>
           }
         />
         <Route
@@ -81,25 +106,31 @@ function AppContent() {
         <Route
           path="/practice/speaking/*"
           element={
-            <ProtectedRoute>
-              <SpeakingPractice />
-            </ProtectedRoute>
+            <PageErrorBoundary>
+              <ProtectedRoute>
+                <SpeakingPractice />
+              </ProtectedRoute>
+            </PageErrorBoundary>
           }
         />
         <Route
           path="/practice/writing/*"
           element={
-            <ProtectedRoute>
-              <WritingPractice />
-            </ProtectedRoute>
+            <PageErrorBoundary>
+              <ProtectedRoute>
+                <WritingPractice />
+              </ProtectedRoute>
+            </PageErrorBoundary>
           }
         />
         <Route
           path="/mock-tests"
           element={
-            <ProtectedRoute>
-              <MockTestPage />
-            </ProtectedRoute>
+            <PageErrorBoundary>
+              <ProtectedRoute>
+                <MockTestPage />
+              </ProtectedRoute>
+            </PageErrorBoundary>
           }
         />
         <Route
@@ -118,6 +149,7 @@ function AppContent() {
             </AdminRoute>
           }
         />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
       <ChatSupport />
       <Toaster position="top-right" richColors />

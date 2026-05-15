@@ -3,6 +3,7 @@ import { TrendingUp, Target, Award, Clock, BookOpen, Mic, Edit, Headphones, Cale
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 import { useAuth } from '../components/AuthContext';
 import { useEffect } from 'react';
+import { ErrorBoundary } from "../components/ErrorBoundary";
 
 const scoreData = [
   { date: 'Jan 15', score: 45 },
@@ -130,6 +131,7 @@ export function Dashboard() {
                   <option>Last 3 months</option>
                 </select>
               </div>
+              <ErrorBoundary>
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={scoreData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
@@ -146,11 +148,13 @@ export function Dashboard() {
                   <Line type="monotone" dataKey="score" stroke="#3b82f6" strokeWidth={3} dot={{ fill: '#3b82f6', r: 5 }} />
                 </LineChart>
               </ResponsiveContainer>
+              </ErrorBoundary>
             </div>
 
             {/* Module Performance */}
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
               <h2 className="text-xl font-bold mb-6">Module Performance</h2>
+              <ErrorBoundary>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={moduleScores}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
@@ -167,6 +171,7 @@ export function Dashboard() {
                   <Bar dataKey="score" fill="#8b5cf6" radius={[8, 8, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
+              </ErrorBoundary>
             </div>
 
             {/* Quick Practice */}
@@ -200,6 +205,7 @@ export function Dashboard() {
             {/* Skill Analysis */}
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
               <h2 className="text-xl font-bold mb-6">Skill Analysis</h2>
+              <ErrorBoundary>
               <ResponsiveContainer width="100%" height={300}>
                 <RadarChart data={skillRadar}>
                   <PolarGrid stroke="#374151" />
@@ -208,6 +214,7 @@ export function Dashboard() {
                   <Radar dataKey="score" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} />
                 </RadarChart>
               </ResponsiveContainer>
+              </ErrorBoundary>
             </div>
 
             {/* Upcoming Tests */}

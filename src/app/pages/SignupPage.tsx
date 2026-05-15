@@ -17,6 +17,9 @@ export function SignupPage() {
   const [isGoogleUser, setIsGoogleUser] = useState(false);
   const [googleEmail, setGoogleEmail] = useState("");
 
+  const [isVerificationPending, setIsVerificationPending] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState("");
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -63,8 +66,13 @@ export function SignupPage() {
   }
 
       await signup(name, email, password);
-      toast.success("Account created successfully!");
-      navigate("/dashboard");
+
+toast.success("Verification email sent!");
+
+setRegisteredEmail(email);
+
+setIsVerificationPending(true);
+
     } catch (error) {
       console.log(error);
       toast.error("Failed to create account");
@@ -100,7 +108,37 @@ export function SignupPage() {
             </p>
           </div>
 
-          {!isGoogleUser ? (
+          {isVerificationPending ? (
+
+  <div className="text-center space-y-6">
+    <div className="text-6xl">📧</div>
+
+    <h2 className="text-2xl font-bold">
+      Verify Your Email
+    </h2>
+
+    <p className="text-gray-600 dark:text-gray-400">
+      We sent a verification link to
+    </p>
+
+    <p className="font-semibold text-blue-600">
+      {registeredEmail}
+    </p>
+
+    <p className="text-sm text-gray-500">
+      Click the link in your inbox, then return here and login.
+    </p>
+
+    <Link to="/login">
+      <button
+        className="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:shadow-lg transition-all"
+      >
+        Go To Login
+      </button>
+    </Link>
+  </div>
+
+) : !isGoogleUser ? (
               <>
 
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -315,6 +353,9 @@ export function SignupPage() {
               </>
               </form>
             )}
+
+
+
 
 
         </div>

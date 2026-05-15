@@ -1,16 +1,23 @@
-import React, { createContext,  useContext, useState, ReactNode, useEffect } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  ReactNode,
+  useEffect,
+} from "react";
 //import { onAuthStateChanged } from "firebase/auth";
 //import { auth } from "../../firebase";
-import { signInWithPopup } from "firebase/auth";
+import { signInWithPopup, sendEmailVerification,createUserWithEmailAndPassword, signInWithEmailAndPassword,
+  signOut, } from "firebase/auth";
 import { auth, provider } from "../../firebase";
 
 interface User {
   id: string;
   name: string;
   email: string;
-  role: 'student' | 'admin';
+  role: "student" | "admin";
   avatar?: string;
-  subscriptionPlan?: 'free' | 'basic' | 'premium' | 'pro';
+  subscriptionPlan?: "free" | "basic" | "premium" | "pro";
 }
 
 interface AuthContextType {
@@ -54,6 +61,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (email: string, password: string) => {
     try {
       setLoading(true);
+
+       // 1. Login with Firebase first
+    const userCredential = await signInWithEmailAndPassword(
+      auth,
+      email,
+      password
+    );
+
+    const firebaseUser = userCredential.user;
+
+    // 2. Check email verification
+    if (!firebaseUser.emailVerified) {
+      await signOut(auth);
+
+      throw new Error("Please verify your email before login");
+    }
+
       const response = await fetch("http://localhost:5000/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -67,7 +91,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       localStorage.setItem("token", data.token);
-      
+
       // Since backend doesn't return user info in /login, we extract from email or use defaults
       // In a real app, you'd fetch user details or decode the JWT
       const userData: User = {
@@ -102,38 +126,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         body: JSON.stringify({
           name: googleUser.displayName,
           email: googleUser.email,
-          password: googleUser.uid, // Use UID as password for Google users
+          // password: googleUser.uid, // Use UID as password for Google users
         }),
       });
 
       const signupData = await signupRes.json();
-      
-      if (!signupRes.ok) {
 
-   // allow already existing users
-   if (signupData.message !== "User already exists") {
-      throw new Error(signupData.message || "Google Signup failed");
-   }
-}
+      if (!signupRes.ok) {
+        // allow already existing users
+        if (signupData.message !== "User already exists") {
+          throw new Error(signupData.message || "Google Signup failed");
+        }
+      }
 
       // 2. Create user object directly from Google
-const userData: User = {
-  id: googleUser.uid,
-  name: googleUser.displayName || googleUser.email?.split("@")[0] || "User",
-  email: googleUser.email!,
-  role: "student",
-  avatar: googleUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${googleUser.email}`,
-  subscriptionPlan: "free",
-};
+      const userData: User = {
+        id: googleUser.uid,
+        name:
+          googleUser.displayName || googleUser.email?.split("@")[0] || "User",
+        email: googleUser.email!,
+        role: "student",
+        avatar:
+          googleUser.photoURL ||
+          `https://api.dicebear.com/7.x/avataaars/svg?seed=${googleUser.email}`,
+        subscriptionPlan: "free",
+      };
 
-// store session
-localStorage.setItem("user", JSON.stringify(userData));
+      // store session
+      localStorage.setItem("user", JSON.stringify(userData));
 
-// set state
-setUser(userData);
+      // set state
+      setUser(userData);
 
-return userData;
-
+      return userData;
     } catch (error) {
       console.error("Google login error:", error);
       throw error;
@@ -141,31 +166,40 @@ return userData;
       setLoading(false);
     }
   };
+const signup = async (name: string, email: string, password: string) => {
+  try {
+    setLoading(true);
 
-  const signup = async (name: string, email: string, password: string) => {
-    try {
-      setLoading(true);
-      const response = await fetch("http://localhost:5000/api/auth/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
-      });
+    // 1. Save user in YOUR backend database
+    const response = await fetch("http://localhost:5000/api/auth/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, email, password }),
+    });
 
-      const data = await response.json();
+    const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.message || "Signup failed");
-      }
-
-      // Automatically login after successful signup to get the token
-      await login(email, password);
-    } catch (error) {
-      console.error("Signup error:", error);
-      throw error;
-    } finally {
-      setLoading(false);
+    if (!response.ok) {
+      throw new Error(data.message || "Signup failed");
     }
-  };
+
+    // 2. Create Firebase auth user
+    const userCredential = await createUserWithEmailAndPassword(
+      auth,
+      email,
+      password
+    );
+
+    // 3. Send verification email
+    await sendEmailVerification(userCredential.user);
+
+  } catch (error) {
+    console.error("Signup error:", error);
+    throw error;
+  } finally {
+    setLoading(false);
+  }
+};
 
   const logout = () => {
     localStorage.removeItem("token");
@@ -174,18 +208,26 @@ return userData;
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, signup, logout, loginWithGoogle, isAuthenticated: !!user, loading }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        login,
+        signup,
+        logout,
+        loginWithGoogle,
+        isAuthenticated: !!user,
+        loading,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
 };
 
-
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };
- 
