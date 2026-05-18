@@ -3,9 +3,13 @@ import { Link, useNavigate } from "react-router-dom";
 import { Mail, Lock, User, Eye, EyeOff, Chrome } from "lucide-react";
 import { useAuth } from "../components/AuthContext";
 import { toast } from "sonner";
-import { EmailAuthProvider, linkWithCredential } from "firebase/auth";
+import {
+  EmailAuthProvider,
+  linkWithCredential,
+  signInWithPopup,
+} from "firebase/auth";
 
-import { auth } from "../../firebase";
+import { auth, provider } from "../../firebase";
 
 export function SignupPage() {
   const [name, setName] = useState("");
@@ -14,11 +18,12 @@ export function SignupPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  const { signup, loading, loginWithGoogle } = useAuth();
+  const { signup, loading, googleSignup ,setUser,} = useAuth();
   const navigate = useNavigate();
-
+  
   const [isGoogleUser, setIsGoogleUser] = useState(false);
   const [googleEmail, setGoogleEmail] = useState("");
+  const [googleUser, setGoogleUser] = useState<any>(null);
 
   const [isVerificationPending, setIsVerificationPending] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState("");
@@ -40,7 +45,7 @@ export function SignupPage() {
       // GOOGLE USER FLOW
       if (isGoogleUser) {
         // const response = await fetch(
-        //   "http://localhost:5000/api/auth/set-password",
+        //   "https://exam-prep-platform-backend.onrender.com/api/auth/set-password",
         //   {
         //     method: "POST",
         //     headers: {
@@ -65,11 +70,15 @@ export function SignupPage() {
 
         // return;
 
-        const currentUser = auth.currentUser;
+        // Sign in with Google again silently
+        // const result = await signInWithPopup(auth, provider);
+
+         const currentUser = googleUser;
 
         if (!currentUser || !currentUser.email) {
-          throw new Error("Google user not found");
-        }
+        throw new Error("Google user not found");
+         }
+         await currentUser.reload();
 
         const credential = EmailAuthProvider.credential(
           currentUser.email,
@@ -77,6 +86,33 @@ export function SignupPage() {
         );
 
         await linkWithCredential(currentUser, credential);
+
+        // GET FIREBASE TOKEN
+        const firebaseToken = await currentUser.getIdToken();
+
+        // CALL BACKEND LOGIN API
+        const response = await fetch("http://localhost:5000/api/auth/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            firebaseToken,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || "Login failed");
+        }
+
+        // SAVE SESSION
+        localStorage.setItem("token", data.token);
+
+        localStorage.setItem("user", JSON.stringify(data.user));
+
+        setUser(data.user);
 
         toast.success("Password set successfully!");
 
@@ -100,30 +136,25 @@ export function SignupPage() {
 
   const handleGoogleSignup = async () => {
     try {
-      const data = await loginWithGoogle();
+      const data = await googleSignup();
 
       toast.success("Google signup successful!");
 
       if (data.isNewUser) {
+        setIsGoogleUser(true);
 
-  setIsGoogleUser(true);
+        setGoogleEmail(data.email);
 
-  setGoogleEmail(data.email);
+        setGoogleUser(data.googleUser);
 
-  setName(data.name || "");
+        setName(data.name || "");
 
-  toast.success(
-    "Google signup successful!"
-  );
+        toast.success("Google signup successful!");
+      } else {
+        toast.success("Welcome back!");
 
-} else {
-
-  toast.success(
-    "Welcome back!"
-  );
-
-  navigate("/login");
-}
+        navigate("/login");
+      }
       setName(data.name || "");
     } catch (error) {
       console.log(error);

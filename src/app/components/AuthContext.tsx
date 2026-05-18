@@ -27,10 +27,12 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
+  setUser: React.Dispatch<React.SetStateAction<User | null>>;
   login: (email: string, password: string) => Promise<void>;
   signup: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
-  loginWithGoogle: () => Promise<any>;
+  googleSignup: () => Promise<any>;
+  googleLogin: () => Promise<any>;
   isAuthenticated: boolean;
   loading: boolean;
 }
@@ -77,18 +79,45 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const firebaseUser = userCredential.user;
 
       // 2. Check email verification
-      if (!firebaseUser.emailVerified) {
-        await signOut(auth);
+      // Refresh latest Firebase user data
+await firebaseUser.reload();
 
-        throw new Error("Please verify your email before login");
-      }
+// Get updated user
+const updatedUser = auth.currentUser;
+
+console.log("updatedUser:", updatedUser);
+
+console.log(
+  "updatedUser.emailVerified:",
+  updatedUser?.emailVerified
+);
+
+console.log(
+  "providerData:",
+  updatedUser?.providerData
+);
+
+const isGoogleLinked =
+  updatedUser?.providerData.some(
+    (provider) =>
+      provider.providerId === "google.com"
+  );
+
+if (!updatedUser?.emailVerified && !isGoogleLinked) {
+  await signOut(auth);
+
+  throw new Error(
+    "Please verify your email before login"
+  );
+}
 
       const firebaseToken = await firebaseUser.getIdToken();
 
+      // const response = await fetch("https://exam-prep-platform-backend.onrender.com/api/auth/login", {
       const response = await fetch("http://localhost:5000/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ firebaseToken, }),
+        body: JSON.stringify({ firebaseToken }),
       });
 
       const data = await response.json();
@@ -120,7 +149,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const loginWithGoogle = async () => {
+  const googleSignup = async () => {
     try {
       setLoading(true);
       const result = await signInWithPopup(auth, provider);
@@ -128,6 +157,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       // 1. Try to signup the user (backend handles "already exists" logic)
       const signupRes = await fetch("http://localhost:5000/api/auth/signup", {
+        // const signupRes = await fetch("https://exam-prep-platform-backend.onrender.com/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -165,16 +195,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // // set state
       // setUser(userData);
 
-      const firebaseToken =
-  await googleUser.getIdToken();
-
+      const firebaseToken = await googleUser.getIdToken();
 
       return {
         ...userData,
         isNewUser: signupData.isNewUser,
         firebaseToken,
+        googleUser,
       };
-
     } catch (error) {
       console.error("Google login error:", error);
       throw error;
@@ -182,6 +210,70 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
     }
   };
+
+  const googleLogin = async () => {
+    try {
+      setLoading(true);
+
+      // 1. Firebase Google Login
+      const result = await signInWithPopup(auth, provider);
+
+      const googleUser = result.user;
+
+      // 2. Get Firebase token
+      const firebaseToken = await googleUser.getIdToken();
+
+      // 3. Call BACKEND LOGIN API
+      const response = await fetch("http://localhost:5000/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          firebaseToken,
+        }),
+      });
+
+      const data = await response.json();
+
+      // 4. If user not in DB
+      if (!response.ok) {
+        // logout firebase session
+        await signOut(auth);
+
+        throw new Error(data.message || "Please signup first");
+      }
+
+      // 5. Create frontend user object
+      const userData: User = {
+        id: data.user.id,
+        name: data.user.name,
+        email: data.user.email,
+        role: "student",
+        avatar:
+          googleUser.photoURL ||
+          `https://api.dicebear.com/7.x/avataaars/svg?seed=${googleUser.email}`,
+        subscriptionPlan: "free",
+      };
+
+      // 6. Store session
+      localStorage.setItem("token", data.token);
+
+      localStorage.setItem("user", JSON.stringify(userData));
+
+      // 7. Set state
+      setUser(userData);
+
+      return userData;
+    } catch (error) {
+      console.error("Google login error:", error);
+
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const signup = async (name: string, email: string, password: string) => {
     try {
       setLoading(true);
@@ -201,6 +293,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       // 3. Save user in backend
       const response = await fetch("http://localhost:5000/api/auth/signup", {
+        // const response = await fetch("https://exam-prep-platform-backend.onrender.com/api/auth/signup", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -235,10 +328,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     <AuthContext.Provider
       value={{
         user,
+        setUser,
         login,
         signup,
         logout,
-        loginWithGoogle,
+        googleSignup,
+        googleLogin,
         isAuthenticated: !!user,
         loading,
       }}

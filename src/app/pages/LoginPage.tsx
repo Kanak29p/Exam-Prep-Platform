@@ -9,8 +9,7 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
-  const { loginWithGoogle } = useAuth();
+  const { login, googleLogin } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -34,35 +33,15 @@ export function LoginPage() {
 
   const handleGoogleLogin = async () => {
     try {
-      const userData = await loginWithGoogle();
-
-      const response = await fetch("http://localhost:5000/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-  firebaseToken: userData.firebaseToken,
-}),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Login failed");
-      }
-
-      localStorage.setItem("token", data.token);
-
-      localStorage.setItem("user", JSON.stringify(userData));
+      await googleLogin();
 
       toast.success("Google Login Successful!");
 
       navigate("/dashboard");
-    } catch (error) {
+    } catch (error: any) {
       console.log(error);
 
-      toast.error("Google Login Failed");
+      toast.error(error.message || "Google Login Failed");
     }
   };
 
