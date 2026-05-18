@@ -21,7 +21,15 @@ export function LoginPage() {
 
       toast.success("Login successful!");
 
-      navigate("/dashboard");
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+
+      console.log("user:", user);
+
+      if (user.role === "admin") {
+        navigate("/admin");
+      } else {
+        navigate("/dashboard");
+      }
     } catch (error: any) {
       console.log(error);
 
@@ -37,7 +45,13 @@ export function LoginPage() {
 
       toast.success("Google Login Successful!");
 
-      navigate("/dashboard");
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+
+      if (user.role === "admin") {
+        navigate("/admin");
+      } else {
+        navigate("/dashboard");
+      }
     } catch (error: any) {
       console.log(error);
 

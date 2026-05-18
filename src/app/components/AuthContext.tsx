@@ -80,36 +80,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       // 2. Check email verification
       // Refresh latest Firebase user data
-await firebaseUser.reload();
+      await firebaseUser.reload();
 
-// Get updated user
-const updatedUser = auth.currentUser;
+      // Get updated user
+      const updatedUser = auth.currentUser;
 
-console.log("updatedUser:", updatedUser);
+      console.log("updatedUser:", updatedUser);
 
-console.log(
-  "updatedUser.emailVerified:",
-  updatedUser?.emailVerified
-);
+      console.log("updatedUser.emailVerified:", updatedUser?.emailVerified);
 
-console.log(
-  "providerData:",
-  updatedUser?.providerData
-);
+      console.log("providerData:", updatedUser?.providerData);
 
-const isGoogleLinked =
-  updatedUser?.providerData.some(
-    (provider) =>
-      provider.providerId === "google.com"
-  );
+      const isGoogleLinked = updatedUser?.providerData.some(
+        (provider) => provider.providerId === "google.com",
+      );
 
-if (!updatedUser?.emailVerified && !isGoogleLinked) {
-  await signOut(auth);
+      if (!updatedUser?.emailVerified && !isGoogleLinked) {
+        await signOut(auth);
 
-  throw new Error(
-    "Please verify your email before login"
-  );
-}
+        throw new Error("Please verify your email before login");
+      }
 
       const firebaseToken = await firebaseUser.getIdToken();
 
@@ -134,10 +124,13 @@ if (!updatedUser?.emailVerified && !isGoogleLinked) {
         id: data.user?.id || Date.now().toString(),
         name: data.user?.name || email.split("@")[0],
         email: email,
-        role: "student",
+        role: data.user.role,
         avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`,
         subscriptionPlan: "free",
       };
+
+      console.log("DATA FROM BACKEND:", data);
+      console.log("ROLE RECEIVED:", data.user.role);
 
       localStorage.setItem("user", JSON.stringify(userData));
       setUser(userData);
@@ -249,7 +242,7 @@ if (!updatedUser?.emailVerified && !isGoogleLinked) {
         id: data.user.id,
         name: data.user.name,
         email: data.user.email,
-        role: "student",
+        role: data.user.role,
         avatar:
           googleUser.photoURL ||
           `https://api.dicebear.com/7.x/avataaars/svg?seed=${googleUser.email}`,
