@@ -52,14 +52,15 @@ export function PracticePage() {
           const category = item.CATEGORY;
           let subCategory = item.SUB_CATEGORY;
 
-          // If Writing, skip "Write Essay" and rename "Essay" to "Write Essay"
-          if (category && category.toLowerCase() === "writing") {
-            if (subCategory && subCategory.toLowerCase() === "write essay") {
-              return acc;
-            }
-            if (subCategory && subCategory.toLowerCase() === "essay") {
-              subCategory = "Write Essay";
-            }
+          // Normalize "Essay" -> "Write Essay" so old and new API data merge cleanly.
+          // The dedup check below prevents this from creating duplicates.
+          if (
+            category &&
+            category.toLowerCase() === "writing" &&
+            subCategory &&
+            subCategory.toLowerCase() === "essay"
+          ) {
+            subCategory = "Write Essay";
           }
 
           // CHECK IF CATEGORY ALREADY EXISTS
