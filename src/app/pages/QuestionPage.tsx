@@ -60,8 +60,6 @@ export function QuestionPage() {
   const [writingSubmitted, setWritingSubmitted] = useState<boolean>(false);
   const [writingAnalysis, setWritingAnalysis] = useState<any>(null);
 
-  console.log("[DEBUG] QuestionPage render - timerStage:", timerStage, "triggerRecord:", triggerRecord);
-
   const handleWritingSubmit = (auto = false) => {
     setWritingSubmitted(true);
     setWritingTimerActive(false);
@@ -170,7 +168,6 @@ export function QuestionPage() {
 
   // Initialize timer states when question changes
   useEffect(() => {
-    console.log("[DEBUG] QuestionPage init useEffect - question:", question);
     if (question && question.CATEGORY?.toLowerCase() === "speaking") {
       const audioWait = parseTimeToSeconds(question.AUDIO_WAITING_TIME, 0);
       const recWait = parseTimeToSeconds(question.RECORDING_WAITING_TIME, 0);
@@ -467,7 +464,6 @@ export function QuestionPage() {
         <img
           src={question.IMAGE_URL}
           onError={(e) => {
-            console.log("Image failed to load, using fallback chart");
             e.currentTarget.onerror = null; // Prevent infinite loop if fallback fails
             e.currentTarget.src = `${import.meta.env.BASE_URL || "/"}statistical_chart.png`;
           }}
@@ -555,16 +551,13 @@ export function QuestionPage() {
             maxTimeSeconds={parseTimeToSeconds(question.RECORDING_TIME)}
             autoStartRecording={triggerRecord}
             onRecordingStart={() => {
-              console.log("[DEBUG] onRecordingStart callback called");
               setTimerStage("recording");
               setTriggerRecord(false);
             }}
             onRecordingComplete={() => {
-              console.log("[DEBUG] onRecordingComplete callback called");
               setTimerStage("completed");
             }}
             onUploadSuccess={() => {
-              console.log("[DEBUG] onUploadSuccess callback called");
               setTimerStage("submitted");
             }}
           />

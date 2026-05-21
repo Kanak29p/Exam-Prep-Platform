@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Clock, Play, CheckCircle, AlertCircle, Trophy, TrendingUp, Calendar, Download } from 'lucide-react';
 import { toast } from 'sonner';

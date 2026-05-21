@@ -1,5 +1,4 @@
 import {
-  BrowserRouter,
   Routes,
   Route,
   Navigate,
@@ -15,8 +14,6 @@ import { LoginPage } from "./pages/LoginPage";
 import { SignupPage } from "./pages/SignupPage";
 import { Dashboard } from "./pages/Dashboard";
 import { PracticePage } from "./pages/PracticePage";
-import { SpeakingPractice } from "./pages/SpeakingPractice";
-import { WritingPractice } from "./pages/WritingPractice";
 import { MockTestPage } from "./pages/MockTestPage";
 import { AdminPanel } from "./pages/AdminPanel";
 import { PricingPage } from "./pages/PricingPage";
@@ -32,8 +29,7 @@ import { QuestionPage } from "./pages/QuestionPage";
 
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, isAuthenticated, loading } = useAuth();
-  console.log("ProtectedRoute user:", user);
+  const { isAuthenticated, loading } = useAuth();
 
   return isAuthenticated ? (
     loading ? (

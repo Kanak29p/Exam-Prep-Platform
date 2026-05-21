@@ -1,12 +1,8 @@
 import { Link, useParams } from "react-router-dom";
 import {
-  Mic,
-  Edit,
   BookOpen,
-  Headphones,
   Target,
   Clock,
-  BarChart3,
   Play,
 } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -17,7 +13,7 @@ const moduleOrder = ["Speaking", "Writing", "Reading", "Listening"];
 
 export function PracticePage() {
   const { module: urlModule } = useParams();
-  const [sections, setSections] = useState<any[]>([]);
+  const [, setSections] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [modules, setModules] = useState<any[]>([]);
 
@@ -43,8 +39,6 @@ export function PracticePage() {
         }
 
         const data = await res.json();
-
-        console.log("Sections:", data);
 
         setSections(data);
 
@@ -109,8 +103,6 @@ export function PracticePage() {
 
     fetchSections();
   }, [urlModule]);
-
-  console.log("GROUPED MODULES:", modules);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pt-20 px-4 pb-12">

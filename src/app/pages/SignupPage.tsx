@@ -129,7 +129,7 @@ export function SignupPage() {
 
       setIsVerificationPending(true);
     } catch (error) {
-      console.log(error);
+      console.error(error);
       toast.error("Failed to create account");
     }
   };
@@ -157,7 +157,7 @@ export function SignupPage() {
       }
       setName(data.name || "");
     } catch (error) {
-      console.log(error);
+      console.error(error);
 
       toast.error("Google signup failed");
     }

@@ -85,12 +85,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Get updated user
       const updatedUser = auth.currentUser;
 
-      console.log("updatedUser:", updatedUser);
-
-      console.log("updatedUser.emailVerified:", updatedUser?.emailVerified);
-
-      console.log("providerData:", updatedUser?.providerData);
-
       const isGoogleLinked = updatedUser?.providerData.some(
         (provider) => provider.providerId === "google.com",
       );
@@ -128,9 +122,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`,
         subscriptionPlan: "free",
       };
-
-      console.log("DATA FROM BACKEND:", data);
-      console.log("ROLE RECEIVED:", data.user.role);
 
       localStorage.setItem("user", JSON.stringify(userData));
       setUser(userData);

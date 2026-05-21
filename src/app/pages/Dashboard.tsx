@@ -34,8 +34,6 @@ const skillRadar = [
 export function Dashboard() {
   const { user } = useAuth();
 
-  console.log(user);
-
   useEffect(() => {
 
   const fetchDashboard = async () => {
@@ -55,13 +53,11 @@ export function Dashboard() {
         }
       );
 
-      const data = await response.json();
-
-      console.log(data);
+      await response.json();
 
     } catch (error) {
 
-      console.log(error);
+      console.error(error);
 
     }
   };

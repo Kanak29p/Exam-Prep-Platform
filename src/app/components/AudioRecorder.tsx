@@ -50,7 +50,6 @@ export function AudioRecorder({
 
   // Trigger auto-start if requested
   useEffect(() => {
-    console.log("[DEBUG] AudioRecorder autoStart useEffect - autoStartRecording:", autoStartRecording, "isRecording:", isRecording, "audioUrl:", audioUrl);
     if (autoStartRecording && !isRecording && !audioUrl && !isUploading) {
       startRecording();
     }
@@ -58,7 +57,6 @@ export function AudioRecorder({
 
   // Start recording
   const startRecording = async () => {
-    console.log("[DEBUG] AudioRecorder startRecording called");
     try {
       setAudioUrl("");
       setAudioBlob(null);
@@ -79,7 +77,6 @@ export function AudioRecorder({
       };
 
       recorder.onstop = () => {
-        console.log("[DEBUG] AudioRecorder recorder.onstop event fired");
         const blob = new Blob(chunks, { type: "audio/webm" });
         setAudioBlob(blob);
         const url = URL.createObjectURL(blob);
@@ -89,7 +86,6 @@ export function AudioRecorder({
       recorder.start();
       setIsRecording(true);
       if (onRecordingStart) {
-        console.log("[DEBUG] calling onRecordingStart callback");
         onRecordingStart();
       }
 
@@ -106,7 +102,6 @@ export function AudioRecorder({
 
   // Stop recording
   const stopRecording = () => {
-    console.log("[DEBUG] AudioRecorder stopRecording called");
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
@@ -123,14 +118,12 @@ export function AudioRecorder({
 
     setIsRecording(false);
     if (onRecordingComplete) {
-      console.log("[DEBUG] calling onRecordingComplete callback");
       onRecordingComplete();
     }
   };
 
   // Upload to Supabase
   const uploadAudio = async () => {
-    console.log("[DEBUG] AudioRecorder uploadAudio called");
     if (!audioBlob) {
       toast.error("No recorded audio found. Please record first.");
       return;
@@ -159,7 +152,6 @@ export function AudioRecorder({
       toast.success("Answer submitted successfully!");
 
       if (onUploadSuccess) {
-        console.log("[DEBUG] calling onUploadSuccess callback");
         onUploadSuccess(publicUrlData.publicUrl);
       }
     } catch (error: any) {

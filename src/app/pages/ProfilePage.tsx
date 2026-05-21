@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { User, Mail, Phone, MapPin, Calendar, Award, TrendingUp, Save, Edit2, Bell, Lock, CreditCard } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Calendar, Award, Save, Edit2, Bell, Lock, CreditCard } from 'lucide-react';
 import { useAuth } from '../components/AuthContext';
 import { toast } from 'sonner';
 

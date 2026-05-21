@@ -9,7 +9,6 @@ import {
   Edit,
   Trash2,
   Download,
-  FileText,
 } from "lucide-react";
 import {
   LineChart,

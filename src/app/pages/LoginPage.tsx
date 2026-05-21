@@ -23,15 +23,13 @@ export function LoginPage() {
 
       const user = JSON.parse(localStorage.getItem("user") || "{}");
 
-      console.log("user:", user);
-
       if (user.role === "admin") {
         navigate("/admin");
       } else {
         navigate("/dashboard");
       }
     } catch (error: any) {
-      console.log(error);
+      console.error(error);
 
       toast.error(error.message || "Login failed");
     } finally {
@@ -53,7 +51,7 @@ export function LoginPage() {
         navigate("/dashboard");
       }
     } catch (error: any) {
-      console.log(error);
+      console.error(error);
 
       toast.error(error.message || "Google Login Failed");
     }
