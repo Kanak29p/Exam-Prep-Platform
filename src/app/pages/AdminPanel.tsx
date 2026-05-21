@@ -1,31 +1,87 @@
-import { useState } from 'react';
-import { Users, BookOpen, CreditCard, BarChart3, Plus, Search, Edit, Trash2, Download, FileText } from 'lucide-react';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useState, useEffect } from "react";
+import {
+  Users,
+  BookOpen,
+  CreditCard,
+  BarChart3,
+  Plus,
+  Search,
+  Edit,
+  Trash2,
+  Download,
+  FileText,
+} from "lucide-react";
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 
 const statsData = [
-  { month: 'Jan', students: 120, revenue: 150000 },
-  { month: 'Feb', students: 185, revenue: 220000 },
-  { month: 'Mar', students: 240, revenue: 310000 },
-  { month: 'Apr', students: 320, revenue: 420000 },
-  { month: 'May', students: 410, revenue: 550000 },
-];
-
-const students = [
-  { id: 1, name: 'Priya Sharma', email: 'priya@example.com', plan: 'Premium', score: 85, status: 'active', joined: '2026-03-15' },
-  { id: 2, name: 'Rahul Verma', email: 'rahul@example.com', plan: 'Pro', score: 88, status: 'active', joined: '2026-02-20' },
-  { id: 3, name: 'Anjali Patel', email: 'anjali@example.com', plan: 'Basic', score: 78, status: 'active', joined: '2026-04-10' },
-  { id: 4, name: 'Vikram Singh', email: 'vikram@example.com', plan: 'Premium', score: 82, status: 'active', joined: '2026-01-05' },
-  { id: 5, name: 'Sneha Reddy', email: 'sneha@example.com', plan: 'Free', score: 65, status: 'inactive', joined: '2026-05-01' },
+  { month: "Jan", students: 120, revenue: 150000 },
+  { month: "Feb", students: 185, revenue: 220000 },
+  { month: "Mar", students: 240, revenue: 310000 },
+  { month: "Apr", students: 320, revenue: 420000 },
+  { month: "May", students: 410, revenue: 550000 },
 ];
 
 export function AdminPanel() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'students' | 'questions' | 'payments'>('overview');
-  const [searchTerm, setSearchTerm] = useState('');
+  interface Student {
+    id: string;
+    name: string;
+    email: string;
+    plan: string;
+    score: number;
+    status: string;
+    joined: string;
+  }
+  const [students, setStudents] = useState<Student[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredStudents = students.filter((student) =>
-    student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  useEffect(() => {
+    const fetchStudents = async () => {
+      try {
+        const token = localStorage.getItem("token"); // your JWT
+
+        const res = await fetch("http://localhost:5000/api/auth/students", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const data = await res.json();
+
+        setStudents(data);
+        setLoading(false);
+      } catch (error) {
+        console.error("Error fetching students:", error);
+        setLoading(false);
+      }
+    };
+
+    fetchStudents();
+  }, []);
+
+  const [activeTab, setActiveTab] = useState<
+    "overview" | "students" | "questions" | "payments"
+  >("overview");
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const filteredStudents = students.filter(
+  (student) =>
+    (student.name?.toLowerCase() || "").includes(
+      searchTerm.toLowerCase()
+    ) ||
+    (student.email?.toLowerCase() || "").includes(
+      searchTerm.toLowerCase()
+    )
+);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pt-20 px-4 pb-12">
@@ -33,7 +89,9 @@ export function AdminPanel() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold mb-2">Admin Dashboard</h1>
-          <p className="text-gray-600 dark:text-gray-400">Manage your PTE platform</p>
+          <p className="text-gray-600 dark:text-gray-400">
+            Manage your PTE platform
+          </p>
         </div>
 
         {/* Quick Stats */}
@@ -64,18 +122,18 @@ export function AdminPanel() {
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 mb-6">
           <div className="flex border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
             {[
-              { id: 'overview', label: 'Overview', icon: BarChart3 },
-              { id: 'students', label: 'Students', icon: Users },
-              { id: 'questions', label: 'Questions', icon: BookOpen },
-              { id: 'payments', label: 'Payments', icon: CreditCard },
+              { id: "overview", label: "Overview", icon: BarChart3 },
+              { id: "students", label: "Students", icon: Users },
+              { id: "questions", label: "Questions", icon: BookOpen },
+              { id: "payments", label: "Payments", icon: CreditCard },
             ].map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`flex items-center gap-2 px-6 py-4 font-semibold transition-colors whitespace-nowrap ${
                   activeTab === tab.id
-                    ? 'text-blue-600 border-b-2 border-blue-600'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                    ? "text-blue-600 border-b-2 border-blue-600"
+                    : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                 }`}
               >
                 <tab.icon className="h-5 w-5" />
@@ -86,7 +144,7 @@ export function AdminPanel() {
 
           <div className="p-6">
             {/* Overview Tab */}
-            {activeTab === 'overview' && (
+            {activeTab === "overview" && (
               <div className="space-y-6">
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
@@ -98,13 +156,18 @@ export function AdminPanel() {
                         <YAxis stroke="#9ca3af" />
                         <Tooltip
                           contentStyle={{
-                            backgroundColor: '#1f2937',
-                            border: 'none',
-                            borderRadius: '0.5rem',
-                            color: '#fff',
+                            backgroundColor: "#1f2937",
+                            border: "none",
+                            borderRadius: "0.5rem",
+                            color: "#fff",
                           }}
                         />
-                        <Line type="monotone" dataKey="students" stroke="#3b82f6" strokeWidth={3} />
+                        <Line
+                          type="monotone"
+                          dataKey="students"
+                          stroke="#3b82f6"
+                          strokeWidth={3}
+                        />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
@@ -118,13 +181,17 @@ export function AdminPanel() {
                         <YAxis stroke="#9ca3af" />
                         <Tooltip
                           contentStyle={{
-                            backgroundColor: '#1f2937',
-                            border: 'none',
-                            borderRadius: '0.5rem',
-                            color: '#fff',
+                            backgroundColor: "#1f2937",
+                            border: "none",
+                            borderRadius: "0.5rem",
+                            color: "#fff",
                           }}
                         />
-                        <Bar dataKey="revenue" fill="#10b981" radius={[8, 8, 0, 0]} />
+                        <Bar
+                          dataKey="revenue"
+                          fill="#10b981"
+                          radius={[8, 8, 0, 0]}
+                        />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -133,22 +200,28 @@ export function AdminPanel() {
                 <div className="grid md:grid-cols-3 gap-6">
                   <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                     <div className="text-2xl font-bold mb-1">245</div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">Active Students</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                      Active Students
+                    </div>
                   </div>
                   <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
                     <div className="text-2xl font-bold mb-1">1,450</div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">Tests Completed</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                      Tests Completed
+                    </div>
                   </div>
                   <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
                     <div className="text-2xl font-bold mb-1">4.8/5</div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">Average Rating</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                      Average Rating
+                    </div>
                   </div>
                 </div>
               </div>
             )}
 
             {/* Students Tab */}
-            {activeTab === 'students' && (
+            {activeTab === "students" && (
               <div className="space-y-4">
                 <div className="flex flex-col md:flex-row gap-4 justify-between">
                   <div className="relative flex-1">
@@ -193,37 +266,46 @@ export function AdminPanel() {
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                       {filteredStudents.map((student) => (
-                        <tr key={student.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <tr
+                          key={student.id}
+                          className="hover:bg-gray-50 dark:hover:bg-gray-700"
+                        >
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div>
-                              <div className="font-semibold">{student.name}</div>
-                              <div className="text-sm text-gray-600 dark:text-gray-400">{student.email}</div>
+                              <div className="font-semibold">
+                                {student.name}
+                              </div>
+                              <div className="text-sm text-gray-600 dark:text-gray-400">
+                                {student.email}
+                              </div>
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span
                               className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                                student.plan === 'Pro'
-                                  ? 'bg-purple-100 dark:bg-purple-900/20 text-purple-600'
-                                  : student.plan === 'Premium'
-                                  ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-600'
-                                  : student.plan === 'Basic'
-                                  ? 'bg-green-100 dark:bg-green-900/20 text-green-600'
-                                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600'
+                                student.plan === "Pro"
+                                  ? "bg-purple-100 dark:bg-purple-900/20 text-purple-600"
+                                  : student.plan === "Premium"
+                                    ? "bg-blue-100 dark:bg-blue-900/20 text-blue-600"
+                                    : student.plan === "Basic"
+                                      ? "bg-green-100 dark:bg-green-900/20 text-green-600"
+                                      : "bg-gray-100 dark:bg-gray-700 text-gray-600"
                               }`}
                             >
                               {student.plan}
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="font-semibold">{student.score}/90</div>
+                            <div className="font-semibold">
+                              {student.score}/90
+                            </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span
                               className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                                student.status === 'active'
-                                  ? 'bg-green-100 dark:bg-green-900/20 text-green-600'
-                                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600'
+                                student.status === "active"
+                                  ? "bg-green-100 dark:bg-green-900/20 text-green-600"
+                                  : "bg-gray-100 dark:bg-gray-700 text-gray-600"
                               }`}
                             >
                               {student.status}
@@ -251,7 +333,7 @@ export function AdminPanel() {
             )}
 
             {/* Questions Tab */}
-            {activeTab === 'questions' && (
+            {activeTab === "questions" && (
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-bold">Question Bank</h3>
@@ -263,18 +345,22 @@ export function AdminPanel() {
 
                 <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
                   {[
-                    { module: 'Speaking', count: 250, icon: '🎤' },
-                    { module: 'Writing', count: 180, icon: '✍️' },
-                    { module: 'Reading', count: 420, icon: '📖' },
-                    { module: 'Listening', count: 390, icon: '🎧' },
+                    { module: "Speaking", count: 250, icon: "🎤" },
+                    { module: "Writing", count: 180, icon: "✍️" },
+                    { module: "Reading", count: 420, icon: "📖" },
+                    { module: "Listening", count: 390, icon: "🎧" },
                   ].map((item, index) => (
                     <div
                       key={index}
                       className="p-6 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-xl border border-gray-200 dark:border-gray-700"
                     >
                       <div className="text-4xl mb-3">{item.icon}</div>
-                      <div className="text-2xl font-bold mb-1">{item.count}</div>
-                      <div className="text-gray-600 dark:text-gray-400">{item.module}</div>
+                      <div className="text-2xl font-bold mb-1">
+                        {item.count}
+                      </div>
+                      <div className="text-gray-600 dark:text-gray-400">
+                        {item.module}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -282,7 +368,7 @@ export function AdminPanel() {
             )}
 
             {/* Payments Tab */}
-            {activeTab === 'payments' && (
+            {activeTab === "payments" && (
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-bold">Recent Transactions</h3>
@@ -294,9 +380,30 @@ export function AdminPanel() {
 
                 <div className="space-y-3">
                   {[
-                    { id: 'TXN001', student: 'Priya Sharma', amount: 1999, plan: 'Premium', date: '2026-05-10', status: 'success' },
-                    { id: 'TXN002', student: 'Rahul Verma', amount: 2999, plan: 'Pro', date: '2026-05-09', status: 'success' },
-                    { id: 'TXN003', student: 'Anjali Patel', amount: 999, plan: 'Basic', date: '2026-05-08', status: 'pending' },
+                    {
+                      id: "TXN001",
+                      student: "Priya Sharma",
+                      amount: 1999,
+                      plan: "Premium",
+                      date: "2026-05-10",
+                      status: "success",
+                    },
+                    {
+                      id: "TXN002",
+                      student: "Rahul Verma",
+                      amount: 2999,
+                      plan: "Pro",
+                      date: "2026-05-09",
+                      status: "success",
+                    },
+                    {
+                      id: "TXN003",
+                      student: "Anjali Patel",
+                      amount: 999,
+                      plan: "Basic",
+                      date: "2026-05-08",
+                      status: "pending",
+                    },
                   ].map((payment, index) => (
                     <div
                       key={index}
@@ -314,12 +421,14 @@ export function AdminPanel() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="font-bold text-lg">₹{payment.amount}</div>
+                        <div className="font-bold text-lg">
+                          ₹{payment.amount}
+                        </div>
                         <span
                           className={`text-xs px-2 py-1 rounded-full ${
-                            payment.status === 'success'
-                              ? 'bg-green-100 dark:bg-green-900/20 text-green-600'
-                              : 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-600'
+                            payment.status === "success"
+                              ? "bg-green-100 dark:bg-green-900/20 text-green-600"
+                              : "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-600"
                           }`}
                         >
                           {payment.status}

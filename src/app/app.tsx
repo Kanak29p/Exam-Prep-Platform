@@ -26,6 +26,10 @@ import { ForumPage } from "./pages/ForumPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { PageErrorBoundary } from "./components/PageErrorBoundary";
 import { NotFoundPage } from "./pages/NotFoundPage";
+import { SectionQuestionsPage } from "./pages/SectionQuestionsPage";
+import { QuestionPage } from "./pages/QuestionPage";
+
+
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, loading } = useAuth();
@@ -104,6 +108,31 @@ function AppContent() {
           }
         />
         <Route
+          path="/practice/:module"
+          element={
+            <ProtectedRoute>
+              <PracticePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/practice/:module/:section"
+          element={
+            <ProtectedRoute>
+              <SectionQuestionsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/practice/:module/:section/:questionId"
+          element={
+            <ProtectedRoute>
+              <QuestionPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* <Route
           path="/practice/speaking/*"
           element={
             <PageErrorBoundary>
@@ -122,7 +151,7 @@ function AppContent() {
               </ProtectedRoute>
             </PageErrorBoundary>
           }
-        />
+        /> */}
         <Route
           path="/mock-tests"
           element={
