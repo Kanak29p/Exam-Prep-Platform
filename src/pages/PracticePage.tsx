@@ -6,8 +6,7 @@ import {
   Play,
 } from "lucide-react";
 import { useState, useEffect } from "react";
-
-//import { AudioRecorder } from "../components/AudioRecorder";
+import { API_BASE_URL } from "../lib/api";
 
 const moduleOrder = ["Speaking", "Writing", "Reading", "Listening"];
 
@@ -23,7 +22,7 @@ export function PracticePage() {
         const token = localStorage.getItem("token");
 
         const res = await fetch(
-          "http://localhost:5000/api/questions/sections",
+          `${API_BASE_URL}/api/questions/sections`,
           {
             headers: {
               Authorization: `Bearer ${token}`,

@@ -3,6 +3,7 @@ import {
   Route,
   Navigate,
   HashRouter,
+  useLocation,
 } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
@@ -28,30 +29,36 @@ import { QuestionPage } from "./pages/QuestionPage";
 
 
 
+function AuthLoading() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-gray-500">Loading...</div>
+    </div>
+  );
+}
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, loading } = useAuth();
 
-  return isAuthenticated ? (
-    loading ? (
-      <div>loading</div>
-    ) : (
-      <>{children}</>
-    )
-  ) : (
-    <Navigate to="/login" />
-  );
+  if (loading) return <AuthLoading />;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  return <>{children}</>;
 }
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
-  const { user, isAuthenticated } = useAuth();
-  return isAuthenticated && user?.role === "admin" ? (
-    <>{children}</>
-  ) : (
-    <Navigate to="/dashboard" />
-  );
+  const { user, isAuthenticated, loading } = useAuth();
+
+  if (loading) return <AuthLoading />;
+  if (!isAuthenticated || user?.role !== "admin") {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return <>{children}</>;
 }
 
 function AppContent() {
+  const location = useLocation();
+  const hideChatSupport = ["/login", "/signup"].includes(location.pathname);
+
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
       <Navbar />
@@ -98,33 +105,41 @@ function AppContent() {
         <Route
           path="/practice"
           element={
-            <ProtectedRoute>
-              <PracticePage />
-            </ProtectedRoute>
+            <PageErrorBoundary>
+              <ProtectedRoute>
+                <PracticePage />
+              </ProtectedRoute>
+            </PageErrorBoundary>
           }
         />
         <Route
           path="/practice/:module"
           element={
-            <ProtectedRoute>
-              <PracticePage />
-            </ProtectedRoute>
+            <PageErrorBoundary>
+              <ProtectedRoute>
+                <PracticePage />
+              </ProtectedRoute>
+            </PageErrorBoundary>
           }
         />
         <Route
           path="/practice/:module/:section"
           element={
-            <ProtectedRoute>
-              <SectionQuestionsPage />
-            </ProtectedRoute>
+            <PageErrorBoundary>
+              <ProtectedRoute>
+                <SectionQuestionsPage />
+              </ProtectedRoute>
+            </PageErrorBoundary>
           }
         />
         <Route
           path="/practice/:module/:section/:questionId"
           element={
-            <ProtectedRoute>
-              <QuestionPage />
-            </ProtectedRoute>
+            <PageErrorBoundary>
+              <ProtectedRoute>
+                <QuestionPage />
+              </ProtectedRoute>
+            </PageErrorBoundary>
           }
         />
 
@@ -161,22 +176,26 @@ function AppContent() {
         <Route
           path="/profile"
           element={
-            <ProtectedRoute>
-              <ProfilePage />
-            </ProtectedRoute>
+            <PageErrorBoundary>
+              <ProtectedRoute>
+                <ProfilePage />
+              </ProtectedRoute>
+            </PageErrorBoundary>
           }
         />
         <Route
           path="/admin"
           element={
-            <AdminRoute>
-              <AdminPanel />
-            </AdminRoute>
+            <PageErrorBoundary>
+              <AdminRoute>
+                <AdminPanel />
+              </AdminRoute>
+            </PageErrorBoundary>
           }
         />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
-      <ChatSupport />
+      {!hideChatSupport && <ChatSupport />}
       <Toaster position="top-right" richColors />
     </div>
   );

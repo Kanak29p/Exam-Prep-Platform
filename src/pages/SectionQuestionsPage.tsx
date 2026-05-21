@@ -1,5 +1,6 @@
 import { useParams, Link } from "react-router-dom";
 import { useState, useEffect } from "react";
+import { API_BASE_URL } from "../lib/api";
 
 export function SectionQuestionsPage() {
   type Question = {
@@ -18,7 +19,7 @@ export function SectionQuestionsPage() {
         const token = localStorage.getItem("token");
 
         const res = await fetch(
-          `http://localhost:5000/api/questions?category=${module}&subCategory=${decodeURIComponent(section)}`,
+          `${API_BASE_URL}/api/questions?category=${module}&subCategory=${decodeURIComponent(section)}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,

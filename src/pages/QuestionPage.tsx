@@ -1,6 +1,7 @@
 import { useParams } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AudioRecorder } from "../components/organisms/AudioRecorder";
+import { API_BASE_URL } from "../lib/api";
 
 type Question = {
   QUESTIONID: number;
@@ -60,6 +61,16 @@ export function QuestionPage() {
   const [writingSubmitted, setWritingSubmitted] = useState<boolean>(false);
   const [writingAnalysis, setWritingAnalysis] = useState<any>(null);
 
+  // Refs mirror the latest values so the timer effect doesn't restart on every keystroke
+  const writingAnswerRef = useRef(writingAnswer);
+  const questionRef = useRef(question);
+  useEffect(() => {
+    writingAnswerRef.current = writingAnswer;
+  }, [writingAnswer]);
+  useEffect(() => {
+    questionRef.current = question;
+  }, [question]);
+
   const handleWritingSubmit = (auto = false) => {
     setWritingSubmitted(true);
     setWritingTimerActive(false);
@@ -116,20 +127,21 @@ export function QuestionPage() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   }
 
-  // Writing timer countdown
+  // Writing timer countdown — only restarts when active flag flips, not on every keystroke
   useEffect(() => {
-    if (!writingTimerActive || writingTimeRemaining <= 0 || writingSubmitted) return;
+    if (!writingTimerActive || writingSubmitted) return;
 
     const intervalId = setInterval(() => {
       setWritingTimeRemaining((prev) => {
         if (prev <= 1) {
           clearInterval(intervalId);
           setWritingTimerActive(false);
-          // Force submit on timeout
           setWritingSubmitted(true);
-          const words = writingAnswer.trim().split(/\s+/).filter(Boolean);
+          const latestAnswer = writingAnswerRef.current;
+          const latestQuestion = questionRef.current;
+          const words = latestAnswer.trim().split(/\s+/).filter(Boolean);
           const count = words.length;
-          const subCat = question?.SUB_CATEGORY?.toLowerCase() || "";
+          const subCat = latestQuestion?.SUB_CATEGORY?.toLowerCase() || "";
           let minW = 200;
           let maxW = 300;
           let catN = "Essay";
@@ -141,7 +153,7 @@ export function QuestionPage() {
           let sentOk = true;
           let sentMsg = "";
           if (catN === "Summary") {
-            const sentences = writingAnswer.trim().split(/[.!?]+/).filter((s) => s.trim().length > 0);
+            const sentences = latestAnswer.trim().split(/[.!?]+/).filter((s) => s.trim().length > 0);
             if (sentences.length !== 1) {
               sentOk = false;
               sentMsg = `Your summary should be exactly one sentence. Currently it contains approximately ${sentences.length} sentences.`;
@@ -164,7 +176,7 @@ export function QuestionPage() {
     }, 1000);
 
     return () => clearInterval(intervalId);
-  }, [writingTimerActive, writingTimeRemaining, writingSubmitted, writingAnswer, question]);
+  }, [writingTimerActive, writingSubmitted]);
 
   // Initialize timer states when question changes
   useEffect(() => {
@@ -258,7 +270,7 @@ export function QuestionPage() {
 
         // Fetch question detail
         const res = await fetch(
-          `http://localhost:5000/api/questions/question/${questionId}`,
+          `${API_BASE_URL}/api/questions/question/${questionId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -280,7 +292,7 @@ export function QuestionPage() {
         // Fetch subcategory questions to find sequential order
         if (module && section) {
           const resList = await fetch(
-            `http://localhost:5000/api/questions?category=${module}&subCategory=${decodeURIComponent(section)}`,
+            `${API_BASE_URL}/api/questions?category=${module}&subCategory=${decodeURIComponent(section)}`,
             {
               headers: {
                 Authorization: `Bearer ${token}`,

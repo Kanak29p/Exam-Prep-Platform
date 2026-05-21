@@ -10,6 +10,7 @@ import {
   Trash2,
   Download,
 } from "lucide-react";
+import { API_BASE_URL } from "../lib/api";
 import {
   LineChart,
   Line,
@@ -46,20 +47,33 @@ export function AdminPanel() {
   useEffect(() => {
     const fetchStudents = async () => {
       try {
-        const token = localStorage.getItem("token"); // your JWT
+        const token = localStorage.getItem("token");
 
-        const res = await fetch("http://localhost:5000/api/auth/students", {
+        const res = await fetch(`${API_BASE_URL}/api/auth/students`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         });
 
-        const data = await res.json();
+        if (res.status === 401) {
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          window.location.reload();
+          return;
+        }
 
-        setStudents(data);
-        setLoading(false);
+        if (!res.ok) {
+          console.error("Failed to fetch students:", res.status);
+          setStudents([]);
+          return;
+        }
+
+        const data = await res.json();
+        setStudents(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error("Error fetching students:", error);
+        setStudents([]);
+      } finally {
         setLoading(false);
       }
     };

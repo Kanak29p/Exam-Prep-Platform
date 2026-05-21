@@ -3,13 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { Mail, Lock, User, Eye, EyeOff, Chrome } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { toast } from "sonner";
-import {
-  EmailAuthProvider,
-  linkWithCredential,
-  signInWithPopup,
-} from "firebase/auth";
-
-import { auth, provider } from "../lib/firebase";
+import { EmailAuthProvider, linkWithCredential } from "firebase/auth";
+import { API_BASE_URL } from "../lib/api";
 
 export function SignupPage() {
   const [name, setName] = useState("");
@@ -42,43 +37,14 @@ export function SignupPage() {
     }
 
     try {
-      // GOOGLE USER FLOW
+      // GOOGLE USER FLOW: link a password to the Google account, then login
       if (isGoogleUser) {
-        // const response = await fetch(
-        //   "https://exam-prep-platform-backend.onrender.com/api/auth/set-password",
-        //   {
-        //     method: "POST",
-        //     headers: {
-        //       "Content-Type": "application/json",
-        //     },
-        //     body: JSON.stringify({
-        //       email: googleEmail,
-        //       password: password,
-        //     }),
-        //   }
-        // );
-
-        // const data = await response.json();
-
-        // if (!response.ok) {
-        //   throw new Error(data.message || "Failed to save password");
-        // }
-
-        // toast.success("Password set successfully!");
-
-        // navigate("/dashboard");
-
-        // return;
-
-        // Sign in with Google again silently
-        // const result = await signInWithPopup(auth, provider);
-
-         const currentUser = googleUser;
+        const currentUser = googleUser;
 
         if (!currentUser || !currentUser.email) {
-        throw new Error("Google user not found");
-         }
-         await currentUser.reload();
+          throw new Error("Google user not found");
+        }
+        await currentUser.reload();
 
         const credential = EmailAuthProvider.credential(
           currentUser.email,
@@ -87,11 +53,9 @@ export function SignupPage() {
 
         await linkWithCredential(currentUser, credential);
 
-        // GET FIREBASE TOKEN
         const firebaseToken = await currentUser.getIdToken();
 
-        // CALL BACKEND LOGIN API
-        const response = await fetch("http://localhost:5000/api/auth/login", {
+        const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -107,17 +71,24 @@ export function SignupPage() {
           throw new Error(data.message || "Login failed");
         }
 
-        // SAVE SESSION
+        // Construct user with avatar fallback so Navbar's <img src> isn't empty
+        const userData = {
+          id: data.user?.id ?? currentUser.uid,
+          name: data.user?.name ?? currentUser.displayName ?? currentUser.email.split("@")[0],
+          email: data.user?.email ?? currentUser.email,
+          role: data.user?.role ?? "student",
+          avatar:
+            currentUser.photoURL ||
+            `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUser.email}`,
+          subscriptionPlan: "free" as const,
+        };
+
         localStorage.setItem("token", data.token);
-
-        localStorage.setItem("user", JSON.stringify(data.user));
-
-        setUser(data.user);
+        localStorage.setItem("user", JSON.stringify(userData));
+        setUser(userData);
 
         toast.success("Password set successfully!");
-
         navigate("/dashboard");
-
         return;
       }
 
@@ -128,9 +99,9 @@ export function SignupPage() {
       setRegisteredEmail(email);
 
       setIsVerificationPending(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      toast.error("Failed to create account");
+      toast.error(error?.message || "Failed to create account");
     }
   };
 
@@ -287,17 +258,7 @@ export function SignupPage() {
                     required
                   />
                   <span className="text-sm text-gray-600 dark:text-gray-400">
-                    I agree to the{" "}
-                    <Link to="/terms" className="text-blue-600 hover:underline">
-                      Terms of Service
-                    </Link>{" "}
-                    and{" "}
-                    <Link
-                      to="/privacy"
-                      className="text-blue-600 hover:underline"
-                    >
-                      Privacy Policy
-                    </Link>
+                    I agree to the Terms of Service and Privacy Policy
                   </span>
                 </label>
 

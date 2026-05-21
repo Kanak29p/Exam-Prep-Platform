@@ -124,12 +124,13 @@ export function LoginPage() {
                   Remember me
                 </span>
               </label>
-              <Link
-                to="/forgot-password"
-                className="text-sm text-blue-600 hover:underline"
+              <button
+                type="button"
+                onClick={() => toast.info("Forgot password is not yet available")}
+                className="text-sm text-blue-600 hover:underline bg-transparent"
               >
                 Forgot password?
-              </Link>
+              </button>
             </div>
 
             <button

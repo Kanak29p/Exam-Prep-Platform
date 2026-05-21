@@ -4,6 +4,7 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, R
 import { useAuth } from '../contexts/AuthContext';
 import { useEffect } from 'react';
 import { ErrorBoundary } from "../components/organisms/ErrorBoundary";
+import { API_BASE_URL } from "../lib/api";
 
 const scoreData = [
   { date: 'Jan 15', score: 45 },
@@ -43,22 +44,25 @@ export function Dashboard() {
       const token = localStorage.getItem("token");
 
       const response = await fetch(
-        "http://localhost:5000/api/auth/dashboard",
+        `${API_BASE_URL}/api/auth/dashboard`,
         {
           method: "GET",
-
           headers: {
             Authorization: `Bearer ${token}`,
           },
         }
       );
 
+      if (response.status === 401) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        window.location.reload();
+        return;
+      }
+
       await response.json();
-
     } catch (error) {
-
       console.error(error);
-
     }
   };
 

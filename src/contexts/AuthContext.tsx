@@ -13,6 +13,7 @@ import {
   signOut,
 } from "firebase/auth";
 import { auth, provider } from "../lib/firebase";
+import { API_BASE_URL } from "../lib/api";
 
 interface User {
   id: string;
@@ -28,7 +29,7 @@ interface AuthContextType {
   setUser: React.Dispatch<React.SetStateAction<User | null>>;
   login: (email: string, password: string) => Promise<void>;
   signup: (name: string, email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   googleSignup: () => Promise<any>;
   googleLogin: () => Promise<any>;
   isAuthenticated: boolean;
@@ -95,8 +96,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const firebaseToken = await firebaseUser.getIdToken();
 
-      // const response = await fetch("https://exam-prep-platform-backend.onrender.com/api/auth/login", {
-      const response = await fetch("http://localhost:5000/api/auth/login", {
+      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ firebaseToken }),
@@ -110,13 +110,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       localStorage.setItem("token", data.token);
 
-      // Since backend doesn't return user info in /login, we extract from email or use defaults
-      // In a real app, you'd fetch user details or decode the JWT
       const userData: User = {
         id: data.user?.id || Date.now().toString(),
         name: data.user?.name || email.split("@")[0],
         email: email,
-        role: data.user.role,
+        role: data.user?.role ?? "student",
         avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`,
         subscriptionPlan: "free",
       };
@@ -138,25 +136,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const googleUser = result.user;
 
       // 1. Try to signup the user (backend handles "already exists" logic)
-      const signupRes = await fetch("http://localhost:5000/api/auth/signup", {
-        // const signupRes = await fetch("https://exam-prep-platform-backend.onrender.com/api/auth/signup", {
+      const signupRes = await fetch(`${API_BASE_URL}/api/auth/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: googleUser.displayName,
           email: googleUser.email,
-          // password: googleUser.uid, // Use UID as password for Google users
         }),
       });
 
       const signupData = await signupRes.json();
-
-      // if (!signupRes.ok) {
-      //   // allow already existing users
-      //   if (signupData.message !== "User already exists") {
-      //     throw new Error(signupData.message || "Google Signup failed");
-      //   }
-      // }
 
       // 2. Create user object directly from Google
       const userData: User = {
@@ -170,12 +159,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           `https://api.dicebear.com/7.x/avataaars/svg?seed=${googleUser.email}`,
         subscriptionPlan: "free",
       };
-
-      // // store session
-      // localStorage.setItem("user", JSON.stringify(userData));
-
-      // // set state
-      // setUser(userData);
 
       const firebaseToken = await googleUser.getIdToken();
 
@@ -206,7 +189,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const firebaseToken = await googleUser.getIdToken();
 
       // 3. Call BACKEND LOGIN API
-      const response = await fetch("http://localhost:5000/api/auth/login", {
+      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -274,8 +257,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await signOut(auth);
 
       // 3. Save user in backend
-      const response = await fetch("http://localhost:5000/api/auth/signup", {
-        // const response = await fetch("https://exam-prep-platform-backend.onrender.com/api/auth/signup", {
+      const response = await fetch(`${API_BASE_URL}/api/auth/signup`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -300,7 +282,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error("Firebase signOut error:", error);
+    }
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     setUser(null);
