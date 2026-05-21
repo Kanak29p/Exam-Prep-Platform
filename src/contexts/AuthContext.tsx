@@ -5,8 +5,6 @@ import React, {
   ReactNode,
   useEffect,
 } from "react";
-//import { onAuthStateChanged } from "firebase/auth";
-//import { auth } from "../../firebase";
 import {
   signInWithPopup,
   sendEmailVerification,
@@ -14,7 +12,7 @@ import {
   signInWithEmailAndPassword,
   signOut,
 } from "firebase/auth";
-import { auth, provider } from "../../firebase";
+import { auth, provider } from "../lib/firebase";
 
 interface User {
   id: string;

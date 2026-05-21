@@ -1,12 +1,10 @@
+import { createRoot } from "react-dom/client";
+import App from "./App";
+import "./styles/index.css";
+import { GlobalErrorBoundary } from "./components/organisms/GlobalErrorBoundary";
 
-  import { createRoot } from "react-dom/client";
-  import App from "./app/App.tsx";
-  import "./styles/index.css";
-  import { GlobalErrorBoundary } from "./app/components/GlobalErrorBoundary.tsx";
-
-  createRoot(document.getElementById("root")!).render(
+createRoot(document.getElementById("root")!).render(
   <GlobalErrorBoundary>
-  <App />
+    <App />
   </GlobalErrorBoundary>
 );
-  

@@ -1,6 +1,6 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { AudioRecorder } from "../components/AudioRecorder";
+import { AudioRecorder } from "../components/organisms/AudioRecorder";
 
 type Question = {
   QUESTIONID: number;

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { User, Mail, Phone, MapPin, Calendar, Award, Save, Edit2, Bell, Lock, CreditCard } from 'lucide-react';
-import { useAuth } from '../components/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 
 export function ProfilePage() {

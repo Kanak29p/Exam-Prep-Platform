@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { GraduationCap, Menu, X, Moon, Sun, User, LogOut } from 'lucide-react';
 import { useState } from 'react';
-import { useAuth } from './AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from 'next-themes';
 
 export function Navbar() {

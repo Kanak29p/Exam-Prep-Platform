@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { supabase } from "../../supabase";
+import { supabase } from "../../lib/supabase";
 import { toast } from "sonner";
 import { Mic, Square, RotateCcw, UploadCloud, CheckCircle2, Loader2 } from "lucide-react";
 

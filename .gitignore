@@ -4,5 +4,6 @@ dist/
 .env
 backend/.env
 .vite/
+db.json
 
 
