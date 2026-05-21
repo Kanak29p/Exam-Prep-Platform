@@ -2,7 +2,7 @@ import {
   Routes,
   Route,
   Navigate,
-  HashRouter,
+  BrowserRouter,
   useLocation,
 } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
@@ -201,14 +201,19 @@ function AppContent() {
   );
 }
 
+// Derive the router basename from Vite's BASE_URL so we don't hard-code the
+// gh-pages prefix here. Strip trailing slash so react-router doesn't double it.
+const ROUTER_BASENAME =
+  (import.meta.env.BASE_URL || "/").replace(/\/$/, "") || "/";
+
 export default function App() {
   return (
     <ThemeProvider attribute="class" defaultTheme="light">
-      <HashRouter>
+      <BrowserRouter basename={ROUTER_BASENAME}>
         <AuthProvider>
           <AppContent />
         </AuthProvider>
-      </HashRouter>
+      </BrowserRouter>
     </ThemeProvider>
   );
 }
