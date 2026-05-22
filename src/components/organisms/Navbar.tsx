@@ -1,17 +1,28 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { GraduationCap, Menu, X, Moon, Sun, User, LogOut } from 'lucide-react';
 import { useState } from 'react';
-import { useAuth } from './AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from 'next-themes';
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, logout, isAuthenticated } = useAuth();
   const { theme, setTheme } = useTheme();
 
   const isActive = (path: string) => location.pathname === path;
+
+  const handleLogout = async () => {
+    setShowUserMenu(false);
+    setIsOpen(false);
+    await logout();
+    navigate('/login');
+  };
+
+  const avatarFallback = (name?: string, email?: string) =>
+    `https://api.dicebear.com/7.x/avataaars/svg?seed=${email || name || 'user'}`;
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg border-b border-gray-200 dark:border-gray-800">
@@ -90,7 +101,7 @@ export function Navbar() {
                   onClick={() => setShowUserMenu(!showUserMenu)}
                   className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
                 >
-                  <img src={user.avatar} alt={user.name} className="h-8 w-8 rounded-full" />
+                  <img src={user.avatar || avatarFallback(user.name, user.email)} alt={user.name} className="h-8 w-8 rounded-full" />
                   <span className="text-sm font-medium">{user.name}</span>
                 </button>
                 {showUserMenu && (
@@ -99,7 +110,7 @@ export function Navbar() {
                       <User className="h-4 w-4" />
                       Profile
                     </Link>
-                    <button onClick={logout} className="flex items-center gap-2 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors w-full text-left text-red-600">
+                    <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors w-full text-left text-red-600">
                       <LogOut className="h-4 w-4" />
                       Logout
                     </button>
@@ -116,28 +127,57 @@ export function Navbar() {
 
         {isOpen && (
           <div className="md:hidden py-4 space-y-3">
-            <Link to="/" className="block px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg">
+            <Link to="/" onClick={() => setIsOpen(false)} className="block px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg">
               Home
             </Link>
-            <Link to="/features" className="block px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg">
-              Features
-            </Link>
-            <Link to="/pricing" className="block px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg">
+            <Link to="/pricing" onClick={() => setIsOpen(false)} className="block px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg">
               Pricing
             </Link>
             {!isAuthenticated ? (
               <>
-                <Link to="/login" className="block px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg">
+                <Link to="/leaderboard" onClick={() => setIsOpen(false)} className="block px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg">
+                  Leaderboard
+                </Link>
+                <Link to="/live-classes" onClick={() => setIsOpen(false)} className="block px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg">
+                  Classes
+                </Link>
+                <Link to="/login" onClick={() => setIsOpen(false)} className="block px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg">
                   Login
                 </Link>
-                <Link to="/signup" className="block px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg text-center">
+                <Link to="/signup" onClick={() => setIsOpen(false)} className="block px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg text-center">
                   Sign Up
                 </Link>
               </>
             ) : (
-              <button onClick={logout} className="block w-full text-left px-4 py-2 text-red-600 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg">
-                Logout
-              </button>
+              <>
+                {user?.role === 'student' && (
+                  <>
+                    <Link to="/dashboard" onClick={() => setIsOpen(false)} className="block px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg">
+                      Dashboard
+                    </Link>
+                    <Link to="/practice" onClick={() => setIsOpen(false)} className="block px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg">
+                      Practice
+                    </Link>
+                    <Link to="/mock-tests" onClick={() => setIsOpen(false)} className="block px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg">
+                      Tests
+                    </Link>
+                    <Link to="/forum" onClick={() => setIsOpen(false)} className="block px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg">
+                      Forum
+                    </Link>
+                  </>
+                )}
+                {user?.role === 'admin' && (
+                  <Link to="/admin" onClick={() => setIsOpen(false)} className="block px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg">
+                    Admin Panel
+                  </Link>
+                )}
+                <Link to="/profile" onClick={() => setIsOpen(false)} className="block px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg">
+                  Profile
+                </Link>
+                <button onClick={handleLogout} className="block w-full text-left px-4 py-2 text-red-600 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg">
+                  Logout
+                </button>
+              </>
             )}
           </div>
         )}

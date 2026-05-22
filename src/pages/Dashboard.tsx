@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom';
 import { TrendingUp, Target, Award, Clock, BookOpen, Mic, Edit, Headphones, Calendar, Trophy, BarChart3, Zap } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
-import { useAuth } from '../components/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useEffect } from 'react';
+import { ErrorBoundary } from "../components/organisms/ErrorBoundary";
+import { API_BASE_URL } from "../lib/api";
 
 const scoreData = [
   { date: 'Jan 15', score: 45 },
@@ -33,8 +35,6 @@ const skillRadar = [
 export function Dashboard() {
   const { user } = useAuth();
 
-  console.log(user);
-
   useEffect(() => {
 
   const fetchDashboard = async () => {
@@ -44,24 +44,25 @@ export function Dashboard() {
       const token = localStorage.getItem("token");
 
       const response = await fetch(
-        "http://localhost:5000/api/auth/dashboard",
+        `${API_BASE_URL}/api/auth/dashboard`,
         {
           method: "GET",
-
           headers: {
             Authorization: `Bearer ${token}`,
           },
         }
       );
 
-      const data = await response.json();
+      if (response.status === 401) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        window.location.reload();
+        return;
+      }
 
-      console.log(data);
-
+      await response.json();
     } catch (error) {
-
-      console.log(error);
-
+      console.error(error);
     }
   };
 
@@ -130,6 +131,7 @@ export function Dashboard() {
                   <option>Last 3 months</option>
                 </select>
               </div>
+              <ErrorBoundary>
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={scoreData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
@@ -146,11 +148,13 @@ export function Dashboard() {
                   <Line type="monotone" dataKey="score" stroke="#3b82f6" strokeWidth={3} dot={{ fill: '#3b82f6', r: 5 }} />
                 </LineChart>
               </ResponsiveContainer>
+              </ErrorBoundary>
             </div>
 
             {/* Module Performance */}
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
               <h2 className="text-xl font-bold mb-6">Module Performance</h2>
+              <ErrorBoundary>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={moduleScores}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
@@ -167,6 +171,7 @@ export function Dashboard() {
                   <Bar dataKey="score" fill="#8b5cf6" radius={[8, 8, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
+              </ErrorBoundary>
             </div>
 
             {/* Quick Practice */}
@@ -200,6 +205,7 @@ export function Dashboard() {
             {/* Skill Analysis */}
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
               <h2 className="text-xl font-bold mb-6">Skill Analysis</h2>
+              <ErrorBoundary>
               <ResponsiveContainer width="100%" height={300}>
                 <RadarChart data={skillRadar}>
                   <PolarGrid stroke="#374151" />
@@ -208,6 +214,7 @@ export function Dashboard() {
                   <Radar dataKey="score" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} />
                 </RadarChart>
               </ResponsiveContainer>
+              </ErrorBoundary>
             </div>
 
             {/* Upcoming Tests */}

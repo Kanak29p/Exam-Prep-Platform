@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
 import { Clock, Play, CheckCircle, AlertCircle, Trophy, TrendingUp, Calendar, Download } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -189,12 +188,12 @@ export function MockTestPage() {
                         </button>
                       ) : (
                         <div className="flex gap-2">
-                          <Link
-                            to={`/results/${test.id}`}
+                          <button
+                            onClick={() => toast.info("Results page is not yet available")}
                             className="px-6 py-3 border border-blue-600 text-blue-600 rounded-lg font-semibold hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors"
                           >
                             View Results
-                          </Link>
+                          </button>
                           <button className="p-3 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                             <Download className="h-5 w-5" />
                           </button>

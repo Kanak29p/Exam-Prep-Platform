@@ -24,8 +24,8 @@ export function HomePage() {
                 Start Free Trial
                 <ArrowRight className="inline-block ml-2 h-5 w-5" />
               </Link>
-              <Link to="/demo" className="px-8 py-4 border-2 border-blue-600 text-blue-600 rounded-lg text-lg font-semibold hover:bg-blue-50 dark:hover:bg-gray-800 transition-all">
-                Watch Demo
+              <Link to="/pricing" className="px-8 py-4 border-2 border-blue-600 text-blue-600 rounded-lg text-lg font-semibold hover:bg-blue-50 dark:hover:bg-gray-800 transition-all">
+                See Pricing
               </Link>
             </div>
           </motion.div>

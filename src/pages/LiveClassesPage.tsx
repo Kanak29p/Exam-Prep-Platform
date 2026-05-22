@@ -83,11 +83,11 @@ const recordedClasses = [
 export function LiveClassesPage() {
   const [activeTab, setActiveTab] = useState<'upcoming' | 'recorded'>('upcoming');
 
-  const handleJoinClass = (classId: number) => {
+  const handleJoinClass = (_classId: number) => {
     toast.success('Joining class... Opening video conference');
   };
 
-  const handleRegister = (classId: number) => {
+  const handleRegister = (_classId: number) => {
     toast.success('Successfully registered for the class!');
   };
 

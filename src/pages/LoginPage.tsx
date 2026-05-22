@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Mail, Lock, Eye, EyeOff, Chrome } from "lucide-react";
-import { useAuth } from "../components/AuthContext";
+import { useAuth } from "../contexts/AuthContext";
 import { toast } from "sonner";
 
 export function LoginPage() {
@@ -9,48 +9,53 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
-  const { loginWithGoogle } = useAuth();
+  const { login, googleLogin } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    
+
     try {
       await login(email, password);
 
       toast.success("Login successful!");
 
-      navigate("/dashboard");
-    } catch (error) {
-      console.log(error);
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
 
-      toast.error("Invalid credentials");
+      if (user.role === "admin") {
+        navigate("/admin");
+      } else {
+        navigate("/dashboard");
+      }
+    } catch (error: any) {
+      console.error(error);
+
+      toast.error(error.message || "Login failed");
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleLogin = async () => {
+    try {
+      await googleLogin();
 
-  try {
+      toast.success("Google Login Successful!");
 
-    await loginWithGoogle();
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
 
-    toast.success("Google Login Successful!");
+      if (user.role === "admin") {
+        navigate("/admin");
+      } else {
+        navigate("/dashboard");
+      }
+    } catch (error: any) {
+      console.error(error);
 
-    navigate("/dashboard");
-
-  } catch (error) {
-
-    console.log(error);
-
-    toast.error("Google Login Failed");
-
-  }
-
-};
+      toast.error(error.message || "Google Login Failed");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center px-4 pt-20">
@@ -119,12 +124,13 @@ export function LoginPage() {
                   Remember me
                 </span>
               </label>
-              <Link
-                to="/forgot-password"
-                className="text-sm text-blue-600 hover:underline"
+              <button
+                type="button"
+                onClick={() => toast.info("Forgot password is not yet available")}
+                className="text-sm text-blue-600 hover:underline bg-transparent"
               >
                 Forgot password?
-              </Link>
+              </button>
             </div>
 
             <button
