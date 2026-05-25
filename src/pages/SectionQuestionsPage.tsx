@@ -77,7 +77,7 @@ export function SectionQuestionsPage() {
         const token = localStorage.getItem("token");
 
         const res = await fetch(
-          `${API_BASE_URL}/api/questions?category=${module}&subCategory=${decodeURIComponent(section || "")}`,
+          `${API_BASE_URL}/api/questions?category=${module}&subCategory=${encodeURIComponent(section || "")}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
