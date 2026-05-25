@@ -3,9 +3,11 @@ import { supabase } from "../../lib/supabase";
 import { toast } from "sonner";
 import { Mic, Square, RotateCcw, UploadCloud, CheckCircle2, Loader2 } from "lucide-react";
 
+const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
 type AudioRecorderProps = {
   maxTimeSeconds?: number;
-  onUploadSuccess?: (url: string) => void;
+  onUploadSuccess?: (url: string, transcript: string) => void;
   autoStartRecording?: boolean;
   onRecordingStart?: () => void;
   onRecordingComplete?: () => void;
@@ -25,17 +27,26 @@ export function AudioRecorder({
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [isUploaded, setIsUploaded] = useState(false);
+  const [transcript, setTranscript] = useState("");
 
   const streamRef = useRef<MediaStream | null>(null);
   const intervalRef = useRef<any>(null);
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
+  const recognitionRef = useRef<any>(null);
 
-  // Clean up interval and stream on unmount
+  // Clean up interval, stream, and speech recognition on unmount
   useEffect(() => {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
+      }
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {
+          console.error(e);
+        }
       }
     };
   }, []);
@@ -62,6 +73,7 @@ export function AudioRecorder({
       setAudioBlob(null);
       setElapsedSeconds(0);
       setIsUploaded(false);
+      setTranscript("");
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
@@ -89,6 +101,34 @@ export function AudioRecorder({
         onRecordingStart();
       }
 
+      // Start Speech Recognition
+      if (SpeechRecognition) {
+        try {
+          const rec = new SpeechRecognition();
+          rec.continuous = true;
+          rec.interimResults = false;
+          rec.lang = "en-US";
+          
+          rec.onresult = (event: any) => {
+            const resultsArray = Array.from(event.results);
+            const currentTranscript = resultsArray
+              .map((result: any) => result[0])
+              .map((result: any) => result.transcript)
+              .join("");
+            setTranscript(currentTranscript);
+          };
+          
+          rec.onerror = (e: any) => {
+            console.error("Speech recognition error:", e);
+          };
+          
+          rec.start();
+          recognitionRef.current = rec;
+        } catch (err) {
+          console.error("Failed to start SpeechRecognition:", err);
+        }
+      }
+
       // Start elapsed timer
       intervalRef.current = setInterval(() => {
         setElapsedSeconds(prev => prev + 1);
@@ -114,6 +154,15 @@ export function AudioRecorder({
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
+    }
+
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (err) {
+        console.error("Failed to stop SpeechRecognition:", err);
+      }
+      recognitionRef.current = null;
     }
 
     setIsRecording(false);
@@ -152,7 +201,7 @@ export function AudioRecorder({
       toast.success("Answer submitted successfully!");
 
       if (onUploadSuccess) {
-        onUploadSuccess(publicUrlData.publicUrl);
+        onUploadSuccess(publicUrlData.publicUrl, transcript);
       }
     } catch (error: any) {
       console.error("Upload error:", error);
@@ -253,6 +302,18 @@ export function AudioRecorder({
         <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
           <p className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-2">Listen to your response:</p>
           <audio ref={audioPlayerRef} controls src={audioUrl} className="w-full" />
+        </div>
+      )}
+
+      {/* Live / Finished Transcript */}
+      {(isRecording || transcript) && (
+        <div className="mt-4 p-4 bg-blue-50/50 dark:bg-blue-950/10 rounded-lg border border-blue-100 dark:border-blue-900/30">
+          <p className="font-semibold text-sm text-blue-700 dark:text-blue-400 mb-1">
+            {isRecording ? "Live Transcript (Speaking...):" : "Speech Transcript:"}
+          </p>
+          <p className="text-sm text-gray-800 dark:text-gray-200 italic font-medium leading-relaxed">
+            {transcript || "Listening..."}
+          </p>
         </div>
       )}
     </div>

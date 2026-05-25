@@ -2,6 +2,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { AudioRecorder } from "../components/organisms/AudioRecorder";
 import { API_BASE_URL } from "../lib/api";
+import { toast } from "sonner";
 
 type Question = {
   QUESTIONID: number;
@@ -103,6 +104,115 @@ export function QuestionPage() {
     questionRef.current = question;
   }, [question]);
 
+  // Reading & Listening interactive states
+  const [rlSubmitted, setRlSubmitted] = useState<boolean>(false);
+  const [rlAnalysis, setRlAnalysis] = useState<any>(null);
+  const [selectedSingle, setSelectedSingle] = useState<string>("");
+  const [selectedMultiple, setSelectedMultiple] = useState<string[]>([]);
+  const [selectedReorder, setSelectedReorder] = useState<string[]>([]);
+  const [selectedBlanks, setSelectedBlanks] = useState<string[]>([]);
+  const [selectedIncorrectWord, setSelectedIncorrectWord] = useState<string>("");
+  const [typedAnswer, setTypedAnswer] = useState<string>("");
+  const [clickedWord, setClickedWord] = useState<string>("");
+
+  const [speakingAnalysis, setSpeakingAnalysis] = useState<any>(null);
+
+  const handleAnswerSubmit = async (audioUrl: string | null, answerText: string | null) => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_BASE_URL}/api/questions/submit`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          questionId: questionId,
+          audioUrl,
+          answerText,
+          score: 0,
+          feedback: ""
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to submit answer to database");
+      }
+      const data = await res.json();
+      if (question?.CATEGORY?.toLowerCase() === "speaking") {
+        setSpeakingAnalysis(data);
+      }
+      toast.success("Answer stored in database!");
+    } catch (err) {
+      console.error("Error submitting answer:", err);
+      toast.error("Failed to store answer in database.");
+    }
+  };
+
+  const handleReadingOrListeningSubmit = async () => {
+    if (!question) return;
+
+    const subCat = (question.SUB_CATEGORY || "").toLowerCase();
+    let answerText = "";
+    
+    const isMcqSingle = subCat.includes("single") || subCat.includes("summary") || subCat.includes("missing word");
+    const isMcqMultiple = subCat.includes("multiple") && !subCat.includes("single");
+    const isReorder = subCat.includes("reorder");
+    const isIncorrectWord = subCat.includes("incorrect word");
+    const isDictation = subCat.includes("dictation");
+    const isSpokenSummary = subCat.includes("summarize spoken") || subCat.includes("summarize discussion");
+    const isFitb = subCat.includes("fill in");
+
+    if (isMcqSingle) {
+      answerText = selectedSingle;
+    } else if (isMcqMultiple) {
+      answerText = selectedMultiple.join(", ");
+    } else if (isReorder) {
+      const letters = selectedReorder.map(opt => opt.trim().substring(0, 1));
+      answerText = letters.join(" → ");
+    } else if (isIncorrectWord) {
+      answerText = selectedIncorrectWord;
+    } else if (isFitb) {
+      answerText = selectedBlanks.join(", ");
+    } else if (isDictation || isSpokenSummary) {
+      answerText = typedAnswer;
+    }
+
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_BASE_URL}/api/questions/submit`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          questionId: questionId,
+          audioUrl: null,
+          answerText: answerText,
+          score: 0,
+          feedback: ""
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to submit answer");
+      }
+      const data = await res.json();
+      setRlAnalysis({
+        score: data.score,
+        accuracy: data.accuracy,
+        feedback: data.feedback,
+        userResponse: answerText
+      });
+      setRlSubmitted(true);
+      toast.success("Answer submitted and graded!");
+    } catch (err) {
+      console.error("Error submitting answer:", err);
+      toast.error("Failed to submit answer.");
+    }
+  };
+
   const handleWritingSubmit = (auto = false) => {
     setWritingSubmitted(true);
     setWritingTimerActive(false);
@@ -145,6 +255,8 @@ export function QuestionPage() {
       categoryName,
       auto
     });
+
+    handleAnswerSubmit(null, writingAnswer);
   };
 
   const handleWritingChange = (val: string) => {
@@ -201,6 +313,7 @@ export function QuestionPage() {
             categoryName: catN,
             auto: true
           });
+          handleAnswerSubmit(null, latestAnswer);
           return 0;
         }
         return prev - 1;
@@ -212,6 +325,7 @@ export function QuestionPage() {
 
   // Initialize timer states when question changes
   useEffect(() => {
+    setSpeakingAnalysis(null);
     if (question && question.CATEGORY?.toLowerCase() === "speaking") {
       const audioWait = parseTimeToSeconds(question.AUDIO_WAITING_TIME, 0);
       const recWait = parseTimeToSeconds(question.RECORDING_WAITING_TIME, 0);
@@ -254,6 +368,36 @@ export function QuestionPage() {
       setTimerStage("idle");
       setCountdownVal(0);
       setTriggerRecord(false);
+    }
+
+    // Reset Reading & Listening interactive states
+    setRlSubmitted(false);
+    setRlAnalysis(null);
+    setSelectedSingle("");
+    setSelectedMultiple([]);
+    setSelectedReorder([]);
+    setSelectedIncorrectWord("");
+    setTypedAnswer("");
+    setClickedWord("");
+
+    if (question && (question.CATEGORY?.toLowerCase() === "reading" || question.CATEGORY?.toLowerCase() === "listening")) {
+      const subCat = (question.SUB_CATEGORY || "").toLowerCase();
+      if (subCat.includes("fill in")) {
+        let passage = question.QUESTION_TEXT;
+        const quoteMatch = question.QUESTION_TEXT.match(/"([^"]+)"/);
+        if (quoteMatch) {
+          passage = quoteMatch[1];
+        } else {
+          passage = question.QUESTION_TEXT.replace(/^.*(?:options|Options):[^\n:]+:\s*/i, "");
+        }
+        const segments = passage.split(/_{2,}/);
+        const blankCount = segments.length - 1;
+        setSelectedBlanks(Array(blankCount).fill(""));
+      } else {
+        setSelectedBlanks([]);
+      }
+    } else {
+      setSelectedBlanks([]);
     }
   }, [question]);
 
@@ -340,7 +484,7 @@ export function QuestionPage() {
         // Fetch subcategory questions to find sequential order
         if (module && section) {
           const resList = await fetch(
-            `${API_BASE_URL}/api/questions?category=${module}&subCategory=${decodeURIComponent(section)}`,
+            `${API_BASE_URL}/api/questions?category=${module}&subCategory=${encodeURIComponent(section)}`,
             {
               headers: {
                 Authorization: `Bearer ${token}`,
@@ -451,7 +595,196 @@ export function QuestionPage() {
         </div>
       )}
 
-      <p className="mb-6 text-lg"> {highlightText(question?.QUESTION_TEXT || "No question text available", searchQuery)}</p>
+      {(() => {
+        const cat = question.CATEGORY?.toLowerCase() || "";
+        const subCat = (question.SUB_CATEGORY || "").toLowerCase();
+        const isFitb = (cat === "reading" || cat === "listening") && subCat.includes("fill in");
+        const isIncorrectWord = (cat === "reading" || cat === "listening") && subCat.includes("incorrect word");
+
+        if (isFitb) {
+          let passage = question.QUESTION_TEXT;
+          let options: string[] = [];
+          
+          const optMatch = question.QUESTION_TEXT.match(/(?:options|Options):\s*([^:\n)]+)/i);
+          if (optMatch) {
+            options = optMatch[1].split(",").map(o => o.trim().replace(/[")&]/g, ""));
+          }
+          
+          const quoteMatch = question.QUESTION_TEXT.match(/"([^"]+)"/);
+          if (quoteMatch) {
+            passage = quoteMatch[1];
+          } else {
+            passage = question.QUESTION_TEXT.replace(/^.*(?:options|Options):[^\n:]+:\s*/i, "");
+          }
+
+          const segments = passage.split(/_{2,}/);
+          const isDragAndDropFitb = cat === "reading" && subCat === "reading fill in the blanks";
+          const isDropdownFitb = cat === "reading" && !isDragAndDropFitb;
+
+          return (
+            <div className="mb-6 space-y-4">
+              <div className="p-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/20 dark:bg-gray-800/10 shadow-sm leading-relaxed text-lg text-gray-800 dark:text-gray-200">
+                {segments.map((segment, index) => (
+                  <span key={index}>
+                    {segment}
+                    {index < segments.length - 1 && (
+                      isDragAndDropFitb ? (
+                        <span
+                          onDragOver={(e) => {
+                            if (!rlSubmitted) e.preventDefault();
+                          }}
+                          onDrop={(e) => {
+                            if (!rlSubmitted) {
+                              e.preventDefault();
+                              const word = e.dataTransfer.getData("text/plain");
+                              if (word && options.includes(word)) {
+                                const newBlanks = [...selectedBlanks];
+                                newBlanks[index] = word;
+                                setSelectedBlanks(newBlanks);
+                              }
+                            }
+                          }}
+                          onClick={() => {
+                            if (!rlSubmitted) {
+                              if (clickedWord) {
+                                const newBlanks = [...selectedBlanks];
+                                newBlanks[index] = clickedWord;
+                                setSelectedBlanks(newBlanks);
+                                setClickedWord("");
+                              } else if (selectedBlanks[index]) {
+                                const newBlanks = [...selectedBlanks];
+                                newBlanks[index] = "";
+                                setSelectedBlanks(newBlanks);
+                              }
+                            }
+                          }}
+                          className={`mx-2 inline-block min-w-[120px] h-[32px] align-middle border-2 rounded-lg text-center leading-7 px-3 text-sm font-semibold transition-all cursor-pointer select-none ${
+                            selectedBlanks[index]
+                              ? "bg-blue-50 border-blue-400 text-blue-800 dark:bg-blue-950/20 dark:border-blue-500 dark:text-blue-300"
+                              : "border-dashed border-gray-300 dark:border-gray-600 hover:border-blue-400 bg-white/50 dark:bg-gray-900/50"
+                          }`}
+                        >
+                          {selectedBlanks[index] || ""}
+                        </span>
+                      ) : isDropdownFitb ? (
+                        <select
+                          value={selectedBlanks[index] || ""}
+                          onChange={(e) => {
+                            const newBlanks = [...selectedBlanks];
+                            newBlanks[index] = e.target.value;
+                            setSelectedBlanks(newBlanks);
+                          }}
+                          disabled={rlSubmitted}
+                          className="mx-2 px-3 py-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all text-sm font-medium inline-block"
+                        >
+                          <option value="">--Select--</option>
+                          {options.map((opt) => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          value={selectedBlanks[index] || ""}
+                          onChange={(e) => {
+                            const newBlanks = [...selectedBlanks];
+                            newBlanks[index] = e.target.value;
+                            setSelectedBlanks(newBlanks);
+                          }}
+                          disabled={rlSubmitted}
+                          className="mx-2 px-3 py-1 w-32 text-center rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all text-sm font-medium inline-block"
+                          placeholder={`Blank ${index + 1}`}
+                        />
+                      )
+                    )}
+                  </span>
+                ))}
+              </div>
+
+              {isDragAndDropFitb && options.length > 0 && (
+                <div className="p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/20 shadow-sm">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 font-medium mb-3">Drag words to fill the blanks, or click a word then click a blank:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {options.map((opt) => {
+                      const isPlaced = selectedBlanks.includes(opt);
+                      const isSelected = clickedWord === opt;
+                      return (
+                        <button
+                          key={opt}
+                          draggable={!isPlaced && !rlSubmitted}
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData("text/plain", opt);
+                          }}
+                          onClick={() => {
+                            if (!rlSubmitted && !isPlaced) {
+                              setClickedWord(isSelected ? "" : opt);
+                            }
+                          }}
+                          disabled={rlSubmitted || isPlaced}
+                          className={`px-3 py-1.5 rounded-lg border text-sm font-semibold transition-all select-none ${
+                            isPlaced
+                              ? "bg-gray-100 border-gray-200 text-gray-400 dark:bg-gray-800 dark:border-gray-750 dark:text-gray-600 cursor-not-allowed opacity-50"
+                              : isSelected
+                              ? "bg-blue-600 border-blue-600 text-white shadow-md scale-105"
+                              : "bg-white border-gray-300 text-gray-800 hover:bg-gray-50 hover:border-gray-400 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800 cursor-pointer"
+                          }`}
+                        >
+                          {opt}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        }
+
+        if (isIncorrectWord) {
+          const textMatch = question.QUESTION_TEXT.match(/Text:\s*"([^"]+)"/i);
+          let transcript = "";
+          if (textMatch) {
+            transcript = textMatch[1];
+          } else {
+            transcript = question.QUESTION_TEXT.replace(/^Audio:[^Text]+Text:\s*/i, "").replace(/Which word is incorrect\??/i, "").replace(/"/g, "").trim();
+          }
+
+          const words = transcript.split(/\s+/);
+
+          return (
+            <div className="mb-6">
+              <p className="mb-2 text-sm text-gray-500 dark:text-gray-400 font-medium">Click on the word that differs from the audio:</p>
+              <div className="flex flex-wrap gap-x-2 gap-y-3 leading-relaxed text-lg p-5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/20 dark:bg-gray-800/10 shadow-sm text-gray-800 dark:text-gray-200">
+                {words.map((word, idx) => {
+                  const cleanW = word.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g, "").toLowerCase();
+                  const isSelected = selectedIncorrectWord === cleanW;
+                  return (
+                    <span
+                      key={idx}
+                      onClick={() => {
+                        if (!rlSubmitted) setSelectedIncorrectWord(cleanW);
+                      }}
+                      className={`cursor-pointer px-2 py-0.5 rounded transition-all font-medium select-none ${
+                        isSelected
+                          ? "bg-yellow-200 text-gray-900 dark:bg-yellow-800 dark:text-white shadow-sm ring-1 ring-yellow-400"
+                          : "hover:bg-gray-200/50 dark:hover:bg-gray-750"
+                      }`}
+                    >
+                      {word}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <p className="mb-6 text-lg">
+            {highlightText(question?.QUESTION_TEXT || "No question text available", searchQuery)}
+          </p>
+        );
+      })()}
 
       {question.CATEGORY?.toLowerCase() === "speaking" && timerStage !== "idle" && (
         <div className={`mb-6 p-4 rounded-xl border transition-all duration-300 shadow-sm ${
@@ -563,7 +896,7 @@ export function QuestionPage() {
           <source src={question.AUDIO_URL} />
         </audio>
       )}
-      {question.OPTIONS && (() => {
+      {question.CATEGORY?.toLowerCase() !== "reading" && question.CATEGORY?.toLowerCase() !== "listening" && question.OPTIONS && (() => {
         let parsedOptions: any[] = [];
         try {
           const parsed = typeof question.OPTIONS === "string"
@@ -627,6 +960,276 @@ export function QuestionPage() {
         );
       })()}
 
+      {/* Interactive Inputs for Reading & Listening */}
+      {(question.CATEGORY?.toLowerCase() === "reading" || question.CATEGORY?.toLowerCase() === "listening") && (() => {
+        const cat = question.CATEGORY.toLowerCase();
+        const subCat = (question.SUB_CATEGORY || "").toLowerCase();
+        
+        const isMcqSingle = subCat.includes("single") || subCat.includes("summary") || subCat.includes("missing word");
+        const isMcqMultiple = subCat.includes("multiple") && !subCat.includes("single");
+        const isReorder = subCat.includes("reorder");
+        const isDictation = subCat.includes("dictation");
+        const isSpokenSummary = subCat.includes("summarize spoken") || subCat.includes("summarize discussion");
+
+        let parsedOptions: any[] = [];
+        try {
+          const parsed = typeof question.OPTIONS === "string"
+            ? JSON.parse(question.OPTIONS)
+            : question.OPTIONS;
+          if (Array.isArray(parsed)) {
+            parsedOptions = parsed;
+          } else if (parsed && typeof parsed === "object") {
+            parsedOptions = [parsed];
+          } else if (typeof question.OPTIONS === "string") {
+            parsedOptions = question.OPTIONS.split(",").map((o: string) => o.trim());
+          }
+        } catch (e) {
+          if (typeof question.OPTIONS === "string") {
+            parsedOptions = question.OPTIONS.split(",").map((o: string) => o.trim());
+          }
+        }
+
+        return (
+          <div className="space-y-6 mt-6">
+            {/* MCQ Single / Highlight Correct Summary / Select Missing Word */}
+            {isMcqSingle && parsedOptions.length > 0 && (
+              <div className="space-y-3">
+                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Select the correct option:</p>
+                <div className="space-y-2">
+                  {parsedOptions.map((opt: any, i: number) => {
+                    const optText = typeof opt === "object" ? (opt.text || opt.label || JSON.stringify(opt)) : String(opt);
+                    const optValue = optText.trim();
+                    const isSelected = selectedSingle === optValue;
+                    return (
+                      <div
+                        key={i}
+                        onClick={() => {
+                          if (!rlSubmitted) setSelectedSingle(optValue);
+                        }}
+                        className={`p-4 border rounded-xl flex items-center transition-all cursor-pointer ${
+                          isSelected
+                            ? "bg-blue-50/30 border-blue-500 dark:bg-blue-950/20 dark:border-blue-400"
+                            : "hover:bg-gray-100 dark:hover:bg-gray-800 border-gray-200 dark:border-gray-700"
+                        }`}
+                      >
+                        <div className={`h-5 w-5 rounded-full border flex items-center justify-center mr-3 shrink-0 ${
+                          isSelected
+                            ? "border-blue-500 dark:border-blue-400"
+                            : "border-gray-300 dark:border-gray-600"
+                        }`}>
+                          {isSelected && <div className="h-2.5 w-2.5 rounded-full bg-blue-500 dark:bg-blue-400" />}
+                        </div>
+                        <div className="text-gray-800 dark:text-gray-205">
+                          {highlightText(optText, searchQuery)}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* MCQ Multiple */}
+            {isMcqMultiple && parsedOptions.length > 0 && (
+              <div className="space-y-3">
+                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Select one or more correct options:</p>
+                <div className="space-y-2">
+                  {parsedOptions.map((opt: any, i: number) => {
+                    const optText = typeof opt === "object" ? (opt.text || opt.label || JSON.stringify(opt)) : String(opt);
+                    const optValue = optText.trim();
+                    const isSelected = selectedMultiple.includes(optValue);
+                    return (
+                      <div
+                        key={i}
+                        onClick={() => {
+                          if (!rlSubmitted) {
+                            if (isSelected) {
+                              setSelectedMultiple(selectedMultiple.filter(item => item !== optValue));
+                            } else {
+                              setSelectedMultiple([...selectedMultiple, optValue]);
+                            }
+                          }
+                        }}
+                        className={`p-4 border rounded-xl flex items-center transition-all cursor-pointer ${
+                          isSelected
+                            ? "bg-blue-50/30 border-blue-500 dark:bg-blue-950/20 dark:border-blue-400"
+                            : "hover:bg-gray-100 dark:hover:bg-gray-800 border-gray-200 dark:border-gray-700"
+                        }`}
+                      >
+                        <div className={`h-5 w-5 rounded border flex items-center justify-center mr-3 shrink-0 ${
+                          isSelected
+                            ? "border-blue-500 bg-blue-500 dark:border-blue-400 dark:bg-blue-400"
+                            : "border-gray-300 dark:border-gray-600"
+                        }`}>
+                          {isSelected && (
+                            <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </div>
+                        <div className="text-gray-800 dark:text-gray-205">
+                          {highlightText(optText, searchQuery)}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Reorder Paragraph */}
+            {isReorder && parsedOptions.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/10 dark:bg-gray-850/10">
+                <div className="space-y-3">
+                  <h4 className="font-semibold text-gray-700 dark:text-gray-300 text-sm">Scrambled Paragraphs (Click to add):</h4>
+                  <div className="space-y-2">
+                    {parsedOptions.filter(opt => !selectedReorder.includes(opt)).map((opt: any, i: number) => (
+                      <button
+                        key={i}
+                        onClick={() => {
+                          if (!rlSubmitted) setSelectedReorder([...selectedReorder, opt]);
+                        }}
+                        disabled={rlSubmitted}
+                        className="w-full text-left p-3 border rounded-xl bg-white hover:bg-blue-50/20 dark:bg-gray-900 border-gray-200 dark:border-gray-700 hover:border-blue-300 transition-all cursor-pointer text-sm leading-relaxed"
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                    {parsedOptions.filter(opt => !selectedReorder.includes(opt)).length === 0 && (
+                      <p className="text-xs text-gray-500 italic p-3 text-center border border-dashed border-gray-300 dark:border-gray-700 rounded-xl bg-white/50 dark:bg-gray-900/50">All sentences placed.</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-3 border-t md:border-t-0 md:border-l pt-4 md:pt-0 md:pl-6 border-gray-200 dark:border-gray-700">
+                  <h4 className="font-semibold text-gray-700 dark:text-gray-300 text-sm">Your Ordered Sequence (Click to remove):</h4>
+                  <div className="space-y-2">
+                    {selectedReorder.map((opt, i) => (
+                      <div key={i} className="flex items-start gap-2">
+                        <span className="font-bold text-blue-600 dark:text-blue-400 font-mono w-6 text-center mt-2">{i + 1}.</span>
+                        <button
+                          onClick={() => {
+                            if (!rlSubmitted) setSelectedReorder(selectedReorder.filter(item => item !== opt));
+                          }}
+                          disabled={rlSubmitted}
+                          className="flex-1 text-left p-3 border rounded-xl bg-blue-50/10 border-blue-200 dark:bg-blue-950/10 dark:border-blue-900/30 hover:bg-red-50/20 hover:border-red-200 dark:hover:bg-red-950/10 transition-all cursor-pointer text-sm leading-relaxed"
+                        >
+                          {opt}
+                        </button>
+                      </div>
+                    ))}
+                    {selectedReorder.length === 0 && (
+                      <p className="text-xs text-gray-500 italic p-3 text-center border border-dashed border-gray-300 dark:border-gray-700 rounded-xl bg-white/50 dark:bg-gray-900/50">Construct your paragraph order here.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Summarize Spoken Text / Write from Dictation */}
+            {(isDictation || isSpokenSummary) && (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400">
+                  <span className="font-medium">Type your transcription below:</span>
+                  {isSpokenSummary && (
+                    <span className="font-mono">Word Count: <strong className="text-gray-750 dark:text-gray-200">{typedAnswer.trim().split(/\s+/).filter(Boolean).length}</strong> (Target: 50-70)</span>
+                  )}
+                </div>
+                <textarea
+                  className="w-full min-h-[150px] p-4 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all resize-y disabled:bg-gray-50 dark:disabled:bg-gray-800/50 disabled:text-gray-500 dark:disabled:text-gray-400 font-sans"
+                  placeholder="Type your answer here..."
+                  value={typedAnswer}
+                  onChange={(e) => {
+                    if (!rlSubmitted) setTypedAnswer(e.target.value);
+                  }}
+                  disabled={rlSubmitted}
+                />
+              </div>
+            )}
+
+            {/* Submission buttons */}
+            <div className="flex gap-4 pt-4">
+              {!rlSubmitted ? (
+                <button
+                  onClick={handleReadingOrListeningSubmit}
+                  className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  Submit Answer
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    setRlSubmitted(false);
+                    setRlAnalysis(null);
+                    setSelectedSingle("");
+                    setSelectedMultiple([]);
+                    setSelectedReorder([]);
+                    setSelectedBlanks(Array(selectedBlanks.length).fill(""));
+                    setSelectedIncorrectWord("");
+                    setTypedAnswer("");
+                  }}
+                  className="px-6 py-3 bg-gray-650 hover:bg-gray-700 text-white font-semibold rounded-xl shadow-md transition-all cursor-pointer"
+                >
+                  Retry / Practice Again
+                </button>
+              )}
+            </div>
+
+            {/* Results Dashboard */}
+            {rlSubmitted && rlAnalysis && (
+              <div className="mt-8 p-6 bg-green-50/40 dark:bg-green-950/10 border border-green-200 dark:border-green-900/30 rounded-xl space-y-4 shadow-sm animate-fadeIn">
+                <h3 className="text-lg font-bold text-green-800 dark:text-green-300 flex items-center gap-2">
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Evaluation Summary
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-4 bg-white dark:bg-gray-800/50 rounded-lg border dark:border-gray-700 shadow-sm flex flex-col justify-center">
+                    <span className="text-xs text-gray-500 dark:text-gray-400 block mb-1">PTE Score</span>
+                    <span className="text-3xl font-extrabold text-blue-600 dark:text-blue-400 font-mono">
+                      {rlAnalysis.score} / 90
+                    </span>
+                  </div>
+                  
+                  <div className="p-4 bg-white dark:bg-gray-800/50 rounded-lg border dark:border-gray-700 shadow-sm flex flex-col justify-center">
+                    <span className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Accuracy</span>
+                    <span className="text-lg font-bold text-gray-900 dark:text-white font-mono">
+                      {rlAnalysis.accuracy}%
+                    </span>
+                  </div>
+                </div>
+                
+                {rlAnalysis.feedback && (
+                  <div className="p-4 bg-white/40 dark:bg-gray-800/20 rounded-lg border dark:border-gray-700">
+                    <span className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Detailed Feedback</span>
+                    <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed font-medium">
+                      {rlAnalysis.feedback}
+                    </p>
+                  </div>
+                )}
+
+                <div className="p-4 bg-white/40 dark:bg-gray-800/20 rounded-lg border dark:border-gray-700 space-y-3">
+                  <div>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 block mb-1 font-mono">Your Response:</span>
+                    <p className="text-sm font-semibold text-gray-800 dark:text-gray-250 leading-relaxed font-mono">
+                      {rlAnalysis.userResponse || <span className="italic text-gray-400">No response submitted</span>}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 block mb-1 font-mono">Correct Answer:</span>
+                    <p className="text-sm font-semibold text-green-700 dark:text-green-400 leading-relaxed font-mono">
+                      {question.CORRECT_ANSWER}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       {question.CATEGORY?.toLowerCase() === "speaking" && (
         <div className="mt-8 border-t pt-6">
           <AudioRecorder
@@ -639,10 +1242,77 @@ export function QuestionPage() {
             onRecordingComplete={() => {
               setTimerStage("completed");
             }}
-            onUploadSuccess={() => {
+            onUploadSuccess={(url: string, transcript: string) => {
               setTimerStage("submitted");
+              handleAnswerSubmit(url, transcript);
             }}
           />
+
+          {speakingAnalysis && (
+            <div className="mt-6 p-6 bg-green-50/50 dark:bg-green-950/10 border border-green-200 dark:border-green-900/30 rounded-xl space-y-4 max-w-xl mx-auto shadow-sm">
+              <h3 className="text-lg font-bold text-green-800 dark:text-green-300 flex items-center gap-2">
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Speaking Score & Evaluation
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* PTE Score */}
+                <div className="p-4 bg-white dark:bg-gray-800/50 rounded-lg border dark:border-gray-700 shadow-sm flex flex-col justify-center">
+                  <span className="text-xs text-gray-500 dark:text-gray-400 block mb-1">PTE Speaking Score</span>
+                  <span className="text-3xl font-extrabold text-blue-600 dark:text-blue-400 font-mono">
+                    {speakingAnalysis.score} / 90
+                  </span>
+                </div>
+                
+                {/* Word Accuracy */}
+                <div className="p-4 bg-white dark:bg-gray-800/50 rounded-lg border dark:border-gray-700 shadow-sm flex flex-col justify-center">
+                  <span className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Pronunciation Accuracy</span>
+                  <span className="text-lg font-bold text-gray-900 dark:text-white">
+                    {speakingAnalysis.accuracy}% matched
+                  </span>
+                </div>
+              </div>
+              
+              {/* Text Feedback */}
+              {speakingAnalysis.feedback && (
+                <div className="p-4 bg-white/40 dark:bg-gray-800/20 rounded-lg border dark:border-gray-700">
+                  <span className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Detailed Feedback</span>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed font-medium">
+                    {speakingAnalysis.feedback}
+                  </p>
+                </div>
+              )}
+              
+              {/* Word Details */}
+              {speakingAnalysis.matchedWords && speakingAnalysis.matchedWords.length > 0 && (
+                <div className="space-y-3 p-4 bg-white/40 dark:bg-gray-800/20 rounded-lg border dark:border-gray-700">
+                  <div>
+                    <span className="text-xs text-green-600 dark:text-green-400 block font-semibold mb-1 font-mono">Matched Words ({speakingAnalysis.matchedWords.length})</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {speakingAnalysis.matchedWords.map((w: string, idx: number) => (
+                        <span key={idx} className="px-2 py-0.5 text-xs font-semibold bg-green-100 text-green-800 dark:bg-green-950/40 dark:text-green-300 rounded border border-green-200 dark:border-green-900/30">
+                          {w}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  {speakingAnalysis.missedWords && speakingAnalysis.missedWords.length > 0 && (
+                    <div>
+                      <span className="text-xs text-red-600 dark:text-red-400 block font-semibold mb-1 font-mono">Missed / Mispronounced Words ({speakingAnalysis.missedWords.length})</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {speakingAnalysis.missedWords.map((w: string, idx: number) => (
+                          <span key={idx} className="px-2 py-0.5 text-xs font-semibold bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-300 rounded border border-red-200 dark:border-red-900/30">
+                            {w}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
