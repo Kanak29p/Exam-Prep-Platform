@@ -147,7 +147,7 @@ export function HomePage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
                 viewport={{ once: true }}
-                className={`p-8 rounded-2xl ${
+                className={`p-8 rounded-2xl flex flex-col ${
                   plan.popular
                     ? 'bg-gradient-to-br from-blue-600 to-purple-600 text-white transform scale-105'
                     : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700'
@@ -173,7 +173,7 @@ export function HomePage() {
                 </ul>
                 <Link
                   to="/signup"
-                  className={`block text-center px-6 py-3 rounded-lg font-semibold transition-all ${
+                  className={`block text-center px-6 py-3 rounded-lg font-semibold transition-all mt-auto ${
                     plan.popular
                       ? 'bg-white text-blue-600 hover:shadow-xl'
                       : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:shadow-xl'

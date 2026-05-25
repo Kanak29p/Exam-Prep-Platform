@@ -11,6 +11,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
+  sendPasswordResetEmail,
 } from "firebase/auth";
 import { auth, provider } from "../lib/firebase";
 import { API_BASE_URL } from "../lib/api";
@@ -22,6 +23,15 @@ interface User {
   role: "student" | "admin";
   avatar?: string;
   subscriptionPlan?: "free" | "basic" | "premium" | "pro";
+  phone?: string;
+  location?: string;
+  targetScore?: number;
+  examDate?: string;
+  bio?: string;
+  country?: string;
+  state?: string;
+  city?: string;
+  plan?: string;
 }
 
 interface AuthContextType {
@@ -32,6 +42,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   googleSignup: () => Promise<any>;
   googleLogin: () => Promise<any>;
+  sendPasswordReset: (email: string) => Promise<void>;
   isAuthenticated: boolean;
   loading: boolean;
 }
@@ -67,11 +78,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (email: string, password: string) => {
     try {
       setLoading(true);
+      const sanitizedEmail = email.trim().toLowerCase();
 
       // 1. Login with Firebase first
       const userCredential = await signInWithEmailAndPassword(
         auth,
-        email,
+        sanitizedEmail,
         password,
       );
 
@@ -112,11 +124,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const userData: User = {
         id: data.user?.id || Date.now().toString(),
-        name: data.user?.name || email.split("@")[0],
-        email: email,
+        name: data.user?.name || sanitizedEmail.split("@")[0],
+        email: sanitizedEmail,
         role: data.user?.role ?? "student",
-        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`,
+        avatar: data.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`,
         subscriptionPlan: "free",
+        phone: data.user?.phone || "",
+        location: data.user?.location || "",
+        targetScore: data.user?.targetScore || 0,
+        examDate: data.user?.examDate || "",
+        bio: data.user?.bio || "",
+        country: data.user?.country || "",
+        state: data.user?.state || "",
+        city: data.user?.city || "",
+        plan: data.user?.plan || "Free",
       };
 
       localStorage.setItem("user", JSON.stringify(userData));
@@ -158,6 +179,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           googleUser.photoURL ||
           `https://api.dicebear.com/7.x/avataaars/svg?seed=${googleUser.email}`,
         subscriptionPlan: "free",
+        phone: "",
+        location: "",
+        targetScore: 0,
+        examDate: "",
+        bio: "",
+        country: "",
+        state: "",
+        city: "",
+        plan: "Free",
       };
 
       const firebaseToken = await googleUser.getIdToken();
@@ -216,9 +246,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         email: data.user.email,
         role: data.user.role,
         avatar:
+          data.user.avatar ||
           googleUser.photoURL ||
           `https://api.dicebear.com/7.x/avataaars/svg?seed=${googleUser.email}`,
         subscriptionPlan: "free",
+        phone: data.user.phone || "",
+        location: data.user.location || "",
+        targetScore: data.user.targetScore || 0,
+        examDate: data.user.examDate || "",
+        bio: data.user.bio || "",
+        country: data.user.country || "",
+        state: data.user.state || "",
+        city: data.user.city || "",
+        plan: data.user.plan || "Free",
       };
 
       // 6. Store session
@@ -242,11 +282,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signup = async (name: string, email: string, password: string) => {
     try {
       setLoading(true);
+      const sanitizedEmail = email.trim().toLowerCase();
 
       // 1. Create Firebase user
       const userCredential = await createUserWithEmailAndPassword(
         auth,
-        email,
+        sanitizedEmail,
         password,
       );
 
@@ -264,7 +305,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         },
         body: JSON.stringify({
           name,
-          email,
+          email: sanitizedEmail,
           password,
         }),
       });
@@ -293,6 +334,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(null);
   };
 
+  const sendPasswordReset = async (email: string) => {
+    try {
+      setLoading(true);
+      const sanitizedEmail = email.trim().toLowerCase();
+      await sendPasswordResetEmail(auth, sanitizedEmail);
+    } catch (error: any) {
+      console.error("Password reset error:", error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -303,6 +357,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         logout,
         googleSignup,
         googleLogin,
+        sendPasswordReset,
         isAuthenticated: !!user,
         loading,
       }}

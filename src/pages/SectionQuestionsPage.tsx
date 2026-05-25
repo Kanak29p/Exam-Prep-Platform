@@ -19,6 +19,33 @@ type Question = {
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
 
+function escapeRegExp(str: string) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function highlightText(text: string | undefined | null, search: string) {
+  const safeText = text || "";
+  const query = search.trim();
+  if (!query) return <span>{safeText}</span>;
+
+  const regex = new RegExp(`(${escapeRegExp(query)})`, "gi");
+  const parts = safeText.split(regex);
+
+  return (
+    <>
+      {parts.map((part, i) =>
+        regex.test(part) ? (
+          <mark key={i} className="bg-yellow-200 dark:bg-yellow-800/80 text-gray-900 dark:text-white rounded-sm px-0.5">
+            {part}
+          </mark>
+        ) : (
+          part
+        )
+      )}
+    </>
+  );
+}
+
 function buildPageList(currentPage: number, totalPages: number): (number | "ellipsis")[] {
   if (totalPages <= 7) {
     return Array.from({ length: totalPages }, (_, i) => i + 1);
@@ -240,7 +267,7 @@ export function SectionQuestionsPage() {
               return (
                 <li key={q.QUESTIONID}>
                   <Link
-                    to={`/practice/${module}/${section}/${q.QUESTIONID}`}
+                    to={`/practice/${module}/${section}/${q.QUESTIONID}${search.trim() ? `?search=${encodeURIComponent(search.trim())}` : ""}`}
                     className="group flex items-start gap-4 p-5 bg-white dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-blue-500 dark:hover:border-blue-400 hover:shadow-md hover:-translate-y-0.5 transition-all"
                   >
                     {/* Number badge */}
@@ -252,14 +279,14 @@ export function SectionQuestionsPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap items-baseline gap-2 mb-1.5">
                         <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors capitalize">
-                          {q.TITLE || sectionLabel}
+                          {highlightText(q.TITLE || sectionLabel, search)}
                         </h3>
                         <span className="font-mono text-[11px] uppercase tracking-wide text-gray-400 dark:text-gray-500">
-                          #{q.QUESTIONID}
+                          #{highlightText(String(q.QUESTIONID), search)}
                         </span>
                       </div>
                       <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 leading-relaxed">
-                        {q.QUESTION_TEXT}
+                        {highlightText(q.QUESTION_TEXT, search)}
                       </p>
                     </div>
 
