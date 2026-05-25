@@ -37,37 +37,37 @@ export function Dashboard() {
 
   useEffect(() => {
 
-  const fetchDashboard = async () => {
+    const fetchDashboard = async () => {
 
-    try {
+      try {
 
-      const token = localStorage.getItem("token");
+        const token = localStorage.getItem("token");
 
-      const response = await fetch(
-        "http://localhost:5000/api/auth/dashboard",
-        {
-          method: "GET",
+        const response = await fetch(
+          "https://exam-prep-platform-backend.onrender.com/api/auth/dashboard",
+          {
+            method: "GET",
 
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
-      const data = await response.json();
+        const data = await response.json();
 
-      console.log(data);
+        console.log(data);
 
-    } catch (error) {
+      } catch (error) {
 
-      console.log(error);
+        console.log(error);
 
-    }
-  };
+      }
+    };
 
-  fetchDashboard();
+    fetchDashboard();
 
-}, []);
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pt-20 px-4 pb-12">

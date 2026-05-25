@@ -54,7 +54,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (email: string, password: string) => {
     try {
       setLoading(true);
-      const response = await fetch("http://localhost:5000/api/auth/login", {
+      const response = await fetch("https://exam-prep-platform-backend.onrender.com/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -96,7 +96,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const googleUser = result.user;
 
       // 1. Try to signup the user (backend handles "already exists" logic)
-      const signupRes = await fetch("http://localhost:5000/api/auth/signup", {
+      const signupRes = await fetch("https://exam-prep-platform-backend.onrender.com/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -126,7 +126,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signup = async (name: string, email: string, password: string) => {
     try {
       setLoading(true);
-      const response = await fetch("http://localhost:5000/api/auth/signup", {
+      const response = await fetch("https://exam-prep-platform-backend.onrender.com/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email, password }),
