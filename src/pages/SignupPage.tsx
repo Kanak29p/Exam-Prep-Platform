@@ -4,6 +4,7 @@ import { Mail, Lock, User, Eye, EyeOff, Chrome } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { toast } from "sonner";
 import { EmailAuthProvider, linkWithCredential } from "firebase/auth";
+import { auth } from "../lib/firebase";
 import { API_BASE_URL } from "../lib/api";
 
 export function SignupPage() {
@@ -39,7 +40,7 @@ export function SignupPage() {
     try {
       // GOOGLE USER FLOW: link a password to the Google account, then login
       if (isGoogleUser) {
-        const currentUser = googleUser;
+        const currentUser = auth.currentUser;
 
         if (!currentUser || !currentUser.email) {
           throw new Error("Google user not found");
@@ -51,9 +52,9 @@ export function SignupPage() {
           password,
         );
 
-        await linkWithCredential(currentUser, credential);
+        const linkedUserCredential = await linkWithCredential(currentUser, credential);
 
-        const firebaseToken = await currentUser.getIdToken();
+        const firebaseToken = await linkedUserCredential.user.getIdToken();
 
         const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
           method: "POST",
@@ -78,9 +79,19 @@ export function SignupPage() {
           email: data.user?.email ?? currentUser.email,
           role: data.user?.role ?? "student",
           avatar:
+            data.user?.avatar ||
             currentUser.photoURL ||
             `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUser.email}`,
           subscriptionPlan: "free" as const,
+          phone: data.user?.phone || "",
+          location: data.user?.location || "",
+          targetScore: data.user?.targetScore || 0,
+          examDate: data.user?.examDate || "",
+          bio: data.user?.bio || "",
+          country: data.user?.country || "",
+          state: data.user?.state || "",
+          city: data.user?.city || "",
+          plan: data.user?.plan || "Free",
         };
 
         localStorage.setItem("token", data.token);

@@ -1,26 +1,267 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { User, Mail, Phone, MapPin, Calendar, Award, Save, Edit2, Bell, Lock, CreditCard } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
+import { API_BASE_URL } from '../lib/api';
+import { Country, State, City } from 'country-state-city';
+
+const PHONE_LENGTHS: Record<string, number> = {
+  IN: 10,
+  US: 10,
+  CA: 10,
+  GB: 10,
+  AU: 9,
+  NZ: 9,
+  SG: 8,
+  AE: 9,
+};
+
+const getPhoneLimit = (countryCode: string) => {
+  if (!countryCode) return 15;
+  return PHONE_LENGTHS[countryCode.toUpperCase()] || 15;
+};
+
+const getCountryData = (countryVal: string) => {
+  if (!countryVal) return null;
+  const upper = countryVal.toUpperCase();
+  const country = Country.getCountryByCode(upper);
+  if (country) {
+    return {
+      code: country.isoCode,
+      name: country.name,
+      flag: country.flag,
+      dialCode: country.phonecode.startsWith('+') ? country.phonecode : `+${country.phonecode}`,
+    };
+  }
+  const foundByName = Country.getAllCountries().find(
+    c => c.name.toUpperCase() === upper
+  );
+  if (foundByName) {
+    return {
+      code: foundByName.isoCode,
+      name: foundByName.name,
+      flag: foundByName.flag,
+      dialCode: foundByName.phonecode.startsWith('+') ? foundByName.phonecode : `+${foundByName.phonecode}`,
+    };
+  }
+  return null;
+};
+
+const stripDialCode = (phone: string, countryCode: string) => {
+  if (!phone) return "";
+  const cData = getCountryData(countryCode);
+  if (!cData) return phone;
+  const dial = cData.dialCode;
+  const cleanDial = dial.replace(/\D/g, "");
+  const cleanPhone = phone.replace(/\D/g, "");
+  if (cleanPhone.startsWith(cleanDial)) {
+    return cleanPhone.substring(cleanDial.length);
+  }
+  return cleanPhone;
+};
 
 export function ProfilePage() {
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
   const [activeTab, setActiveTab] = useState<'profile' | 'settings' | 'subscription'>('profile');
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const [profileData, setProfileData] = useState({
-    name: user?.name || 'John Doe',
-    email: user?.email || 'john@example.com',
-    phone: '+91 98765 43210',
-    location: 'Mumbai, India',
-    targetScore: 79,
-    examDate: '2026-06-15',
-    bio: 'Preparing for PTE to pursue my master\'s degree in Australia.',
+    name: '',
+    email: '',
+    phone: '',
+    location: '',
+    targetScore: '' as string | number,
+    examDate: '',
+    bio: '',
+    avatar: '',
+    country: '',
+    state: '',
+    city: '',
+    plan: 'Free',
   });
 
-  const handleSave = () => {
-    setIsEditing(false);
-    toast.success('Profile updated successfully!');
+  // Sync state when user is loaded/updated
+  useEffect(() => {
+    if (user) {
+      let detectedCountry = user.country || '';
+      let rawPhone = user.phone || '';
+      
+      if (detectedCountry) {
+        const cData = getCountryData(detectedCountry);
+        if (cData) {
+          detectedCountry = cData.code;
+        }
+      } else if (rawPhone) {
+        const cleanPhone = rawPhone.replace(/\D/g, '');
+        const sortedCountries = [...Country.getAllCountries()].sort(
+          (a, b) => b.phonecode.length - a.phonecode.length
+        );
+        for (const c of sortedCountries) {
+          const cleanDial = c.phonecode.replace(/\D/g, '');
+          if (cleanPhone.startsWith(cleanDial)) {
+            detectedCountry = c.isoCode;
+            break;
+          }
+        }
+      }
+
+      let detectedState = user.state || '';
+      if (detectedCountry && detectedState) {
+        const states = State.getStatesOfCountry(detectedCountry);
+        const match = states.find(
+          (s) => s.isoCode.toUpperCase() === detectedState.toUpperCase() || s.name.toUpperCase() === detectedState.toUpperCase()
+        );
+        if (match) {
+          detectedState = match.name;
+        }
+      }
+
+      let detectedCity = user.city || '';
+      if (detectedCountry && detectedState && detectedCity) {
+        const states = State.getStatesOfCountry(detectedCountry);
+        const matchState = states.find((s) => s.name === detectedState);
+        if (matchState) {
+          const cities = City.getCitiesOfState(detectedCountry, matchState.isoCode);
+          const matchCity = cities.find(
+            (c) => c.name.toUpperCase() === detectedCity.toUpperCase()
+          );
+          if (matchCity) {
+            detectedCity = matchCity.name;
+          }
+        }
+      }
+
+      const cleanPhone = stripDialCode(rawPhone, detectedCountry);
+
+      setProfileData({
+        name: user.name || '',
+        email: user.email || '',
+        phone: cleanPhone,
+        location: user.location || '',
+        targetScore: user.targetScore || '',
+        examDate: user.examDate ? user.examDate.substring(0, 10) : '',
+        bio: user.bio || '',
+        avatar: user.avatar || '',
+        country: detectedCountry,
+        state: detectedState,
+        city: detectedCity,
+        plan: user.plan || 'Free',
+      });
+    }
+  }, [user]);
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawVal = e.target.value;
+    const cleanVal = rawVal.replace(/\D/g, '');
+    const limit = getPhoneLimit(profileData.country);
+    if (cleanVal.length <= limit) {
+      setProfileData(prev => ({ ...prev, phone: cleanVal }));
+    }
+  };
+
+  const handleCountryChange = (countryCode: string) => {
+    const limit = getPhoneLimit(countryCode);
+    const truncatedPhone = profileData.phone.replace(/\D/g, '').substring(0, limit);
+    setProfileData(prev => ({
+      ...prev,
+      country: countryCode,
+      state: '',
+      city: '',
+      phone: truncatedPhone
+    }));
+  };
+
+  const handleStateChange = (stateName: string) => {
+    setProfileData(prev => ({
+      ...prev,
+      state: stateName,
+      city: ''
+    }));
+  };
+
+  const handleAvatarChange = () => {
+    if (!isEditing) setIsEditing(true);
+    const newSeed = Math.random().toString(36).substring(7);
+    const newAvatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${newSeed}`;
+    setProfileData(prev => ({ ...prev, avatar: newAvatar }));
+    toast.success('Generated a new random avatar. Save changes to keep it!');
+  };
+
+  const handleSave = async () => {
+    if (profileData.phone) {
+      const cData = getCountryData(profileData.country);
+      const limit = getPhoneLimit(profileData.country);
+      if (cData) {
+        if (limit !== 15 && profileData.phone.length !== limit) {
+          toast.error(`Phone number must be exactly ${limit} digits for ${cData.name}.`);
+          return;
+        } else if (limit === 15 && (profileData.phone.length < 7 || profileData.phone.length > 15)) {
+          toast.error(`Phone number must be between 7 and 15 digits.`);
+          return;
+        }
+      }
+    }
+
+    try {
+      setIsSaving(true);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Session expired. Please log in again.');
+        return;
+      }
+
+      const cData = getCountryData(profileData.country);
+      const fullPhone = profileData.phone && cData
+        ? `${cData.dialCode}${profileData.phone}`
+        : profileData.phone;
+
+      const displayLocation = profileData.country 
+        ? [profileData.city, profileData.state, cData ? cData.name : profileData.country].filter(Boolean).join(', ')
+        : profileData.location;
+
+      const response = await fetch(`${API_BASE_URL}/api/auth/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: profileData.name,
+          phone: fullPhone,
+          location: displayLocation,
+          targetScore: profileData.targetScore,
+          examDate: profileData.examDate,
+          bio: profileData.bio,
+          avatar: profileData.avatar,
+          country: profileData.country,
+          state: profileData.state,
+          city: profileData.city,
+          plan: profileData.plan,
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to update profile');
+      }
+
+      const updatedUser = {
+        ...user,
+        ...data.user
+      };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      setUser(updatedUser);
+
+      setIsEditing(false);
+      toast.success('Profile updated successfully!');
+    } catch (error: any) {
+      console.error('Update profile error:', error);
+      toast.error(error.message || 'Failed to update profile');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -31,11 +272,14 @@ export function ProfilePage() {
           <div className="flex flex-col md:flex-row items-center gap-6">
             <div className="relative">
               <img
-                src={user?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=John'}
-                alt={user?.name}
-                className="h-24 w-24 rounded-full border-4 border-white shadow-xl"
+                src={profileData.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=John'}
+                alt={profileData.name}
+                className="h-24 w-24 rounded-full border-4 border-white shadow-xl object-cover bg-white"
               />
-              <button className="absolute bottom-0 right-0 p-2 bg-white text-blue-600 rounded-full shadow-lg hover:scale-110 transition-transform">
+              <button 
+                onClick={handleAvatarChange}
+                className="absolute bottom-0 right-0 p-2 bg-white text-blue-600 rounded-full shadow-lg hover:scale-110 transition-transform"
+              >
                 <Edit2 className="h-4 w-4" />
               </button>
             </div>
@@ -44,13 +288,13 @@ export function ProfilePage() {
               <p className="text-white/90 mb-2">{profileData.email}</p>
               <div className="flex flex-wrap gap-3 justify-center md:justify-start">
                 <span className="px-3 py-1 bg-white/20 rounded-full text-sm">
-                  Premium Member
+                  {profileData.plan || 'Free'} Member
                 </span>
                 <span className="px-3 py-1 bg-white/20 rounded-full text-sm">
-                  Target Score: {profileData.targetScore}
+                  Target Score: {profileData.targetScore || 'N/A'}
                 </span>
                 <span className="px-3 py-1 bg-white/20 rounded-full text-sm">
-                  Exam: {profileData.examDate}
+                  Exam: {profileData.examDate || 'Not Scheduled'}
                 </span>
               </div>
             </div>
@@ -127,7 +371,7 @@ export function ProfilePage() {
                           type="text"
                           value={profileData.name}
                           onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
-                          disabled={!isEditing}
+                          disabled={!isEditing || isSaving}
                           className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 disabled:bg-gray-50 dark:disabled:bg-gray-900"
                         />
                       </div>
@@ -140,38 +384,116 @@ export function ProfilePage() {
                         <input
                           type="email"
                           value={profileData.email}
-                          onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
-                          disabled={!isEditing}
-                          className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 disabled:bg-gray-50 dark:disabled:bg-gray-900"
+                          disabled={true}
+                          className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 bg-gray-50 dark:bg-gray-900 cursor-not-allowed opacity-75"
                         />
                       </div>
                     </div>
 
+                    {/* Country Dropdown */}
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Country</label>
+                      <div className="relative">
+                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                        <select
+                          value={profileData.country}
+                          onChange={(e) => handleCountryChange(e.target.value)}
+                          disabled={!isEditing || isSaving}
+                          className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 disabled:bg-gray-50 dark:disabled:bg-gray-900 bg-white dark:bg-gray-800"
+                        >
+                          <option value="" className="dark:bg-gray-800">Select Country</option>
+                          {Country.getAllCountries().map((c) => (
+                            <option key={c.isoCode} value={c.isoCode} className="dark:bg-gray-800">
+                              {c.flag} {c.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Phone Number Input */}
                     <div>
                       <label className="block text-sm font-medium mb-2">Phone Number</label>
-                      <div className="relative">
-                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                      <div className="flex rounded-lg overflow-hidden">
+                        {/* Flag and Code Prefix */}
+                        <div className="flex items-center gap-1.5 px-3 border border-r-0 border-gray-300 dark:border-gray-600 rounded-l-lg bg-gray-50 dark:bg-gray-800 text-gray-500 min-w-[75px] justify-center select-none border-solid">
+                          {(() => {
+                            const cData = getCountryData(profileData.country);
+                            return cData ? (
+                              <>
+                                <span className="text-lg">{cData.flag}</span>
+                                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{cData.dialCode}</span>
+                              </>
+                            ) : (
+                              <Phone className="h-4 w-4 text-gray-400" />
+                            );
+                          })()}
+                        </div>
                         <input
                           type="tel"
                           value={profileData.phone}
-                          onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
-                          disabled={!isEditing}
-                          className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 disabled:bg-gray-50 dark:disabled:bg-gray-900"
+                          onChange={handlePhoneChange}
+                          disabled={!isEditing || isSaving}
+                          placeholder={(() => {
+                            const limit = getPhoneLimit(profileData.country);
+                            return limit !== 15 ? `Enter ${limit}-digit number` : "Select country first";
+                          })()}
+                          className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-r-lg dark:bg-gray-700 disabled:bg-gray-50 dark:disabled:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
                       </div>
                     </div>
 
+                    {/* State Dropdown */}
                     <div>
-                      <label className="block text-sm font-medium mb-2">Location</label>
+                      <label className="block text-sm font-medium mb-2">State</label>
                       <div className="relative">
                         <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                        <input
-                          type="text"
-                          value={profileData.location}
-                          onChange={(e) => setProfileData({ ...profileData, location: e.target.value })}
-                          disabled={!isEditing}
-                          className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 disabled:bg-gray-50 dark:disabled:bg-gray-900"
-                        />
+                        <select
+                          value={profileData.state}
+                          onChange={(e) => handleStateChange(e.target.value)}
+                          disabled={!isEditing || isSaving || !profileData.country}
+                          className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 disabled:bg-gray-50 dark:disabled:bg-gray-900 bg-white dark:bg-gray-800"
+                        >
+                          <option value="" className="dark:bg-gray-800">Select State</option>
+                          {profileData.country &&
+                            State.getStatesOfCountry(profileData.country).map((s) => (
+                              <option key={s.isoCode} value={s.name} className="dark:bg-gray-800">
+                                {s.name}
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* City Dropdown */}
+                    <div>
+                      <label className="block text-sm font-medium mb-2">City</label>
+                      <div className="relative">
+                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                        <select
+                          value={profileData.city}
+                          onChange={(e) => setProfileData({ ...profileData, city: e.target.value })}
+                          disabled={!isEditing || isSaving || !profileData.state}
+                          className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 disabled:bg-gray-50 dark:disabled:bg-gray-900 bg-white dark:bg-gray-800"
+                        >
+                          <option value="" className="dark:bg-gray-800">Select City</option>
+                          {(() => {
+                            if (profileData.country && profileData.state) {
+                              const states = State.getStatesOfCountry(profileData.country);
+                              const selectedStateObj = states.find(
+                                (s) => s.name === profileData.state || s.isoCode === profileData.state
+                              );
+                              if (selectedStateObj) {
+                                return City.getCitiesOfState(profileData.country, selectedStateObj.isoCode).map((city) => (
+                                  <option key={city.name} value={city.name} className="dark:bg-gray-800">
+                                    {city.name}
+                                  </option>
+                                ));
+                              }
+                            }
+                            return null;
+                          })()}
+                        </select>
                       </div>
                     </div>
 
@@ -182,34 +504,52 @@ export function ProfilePage() {
                         <input
                           type="number"
                           value={profileData.targetScore}
-                          onChange={(e) => setProfileData({ ...profileData, targetScore: parseInt(e.target.value) })}
-                          disabled={!isEditing}
+                          onChange={(e) => setProfileData({ ...profileData, targetScore: parseInt(e.target.value) || 0 })}
+                          disabled={!isEditing || isSaving}
                           className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 disabled:bg-gray-50 dark:disabled:bg-gray-900"
                         />
                       </div>
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Exam Date</label>
-                      <div className="relative">
-                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                        <input
-                          type="date"
-                          value={profileData.examDate}
-                          onChange={(e) => setProfileData({ ...profileData, examDate: e.target.value })}
-                          disabled={!isEditing}
-                          className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 disabled:bg-gray-50 dark:disabled:bg-gray-900"
-                        />
-                      </div>
-                    </div>
-                  </div>
+                     <div>
+                       <label className="block text-sm font-medium mb-2">Exam Date</label>
+                       <div className="relative">
+                         <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                         <input
+                           type="date"
+                           value={profileData.examDate}
+                           onChange={(e) => setProfileData({ ...profileData, examDate: e.target.value })}
+                           disabled={!isEditing || isSaving}
+                           className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 disabled:bg-gray-50 dark:disabled:bg-gray-900"
+                         />
+                       </div>
+                     </div>
+
+                     <div>
+                       <label className="block text-sm font-medium mb-2">Subscription Plan</label>
+                       <div className="relative">
+                         <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                         <select
+                           value={profileData.plan}
+                           onChange={(e) => setProfileData({ ...profileData, plan: e.target.value })}
+                           disabled={!isEditing || isSaving}
+                           className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 disabled:bg-gray-50 dark:disabled:bg-gray-900 bg-white dark:bg-gray-800"
+                         >
+                           <option value="Free" className="dark:bg-gray-800">Free</option>
+                           <option value="Basic" className="dark:bg-gray-800">Basic</option>
+                           <option value="Premium" className="dark:bg-gray-800">Premium</option>
+                           <option value="Pro" className="dark:bg-gray-800">Pro</option>
+                         </select>
+                       </div>
+                     </div>
+                   </div>
 
                   <div className="mt-6">
                     <label className="block text-sm font-medium mb-2">Bio</label>
                     <textarea
                       value={profileData.bio}
                       onChange={(e) => setProfileData({ ...profileData, bio: e.target.value })}
-                      disabled={!isEditing}
+                      disabled={!isEditing || isSaving}
                       rows={4}
                       className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 disabled:bg-gray-50 dark:disabled:bg-gray-900"
                     />
@@ -219,14 +559,16 @@ export function ProfilePage() {
                     <div className="mt-6 flex gap-3">
                       <button
                         onClick={handleSave}
-                        className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:shadow-lg transition-all flex items-center gap-2"
+                        disabled={isSaving}
+                        className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50"
                       >
                         <Save className="h-5 w-5" />
-                        Save Changes
+                        {isSaving ? 'Saving...' : 'Save Changes'}
                       </button>
                       <button
                         onClick={() => setIsEditing(false)}
-                        className="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                        disabled={isSaving}
+                        className="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
                       >
                         Cancel
                       </button>
@@ -299,7 +641,7 @@ export function ProfilePage() {
                 <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl p-8">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h2 className="text-3xl font-bold mb-2">Premium Plan</h2>
+                      <h2 className="text-3xl font-bold mb-2">{profileData.plan || 'Free'} Plan</h2>
                       <p className="text-white/90">Active until June 15, 2026</p>
                     </div>
                     <div className="text-right">

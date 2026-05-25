@@ -6,7 +6,6 @@ import { useTheme } from 'next-themes';
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
-  const [showUserMenu, setShowUserMenu] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout, isAuthenticated } = useAuth();
@@ -15,7 +14,6 @@ export function Navbar() {
   const isActive = (path: string) => location.pathname === path;
 
   const handleLogout = async () => {
-    setShowUserMenu(false);
     setIsOpen(false);
     await logout();
     navigate('/login');
@@ -96,16 +94,15 @@ export function Navbar() {
                 </Link>
               </div>
             ) : (
-              <div className="relative">
+              <div className="relative group">
                 <button
-                  onClick={() => setShowUserMenu(!showUserMenu)}
                   className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
                 >
                   <img src={user.avatar || avatarFallback(user.name, user.email)} alt={user.name} className="h-8 w-8 rounded-full" />
                   <span className="text-sm font-medium">{user.name}</span>
                 </button>
-                {showUserMenu && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
+                <div className="absolute right-0 top-full pt-2 w-48 hidden group-hover:block z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
                     <Link to="/profile" className="flex items-center gap-2 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                       <User className="h-4 w-4" />
                       Profile
@@ -115,7 +112,7 @@ export function Navbar() {
                       Logout
                     </button>
                   </div>
-                )}
+                </div>
               </div>
             )}
           </div>

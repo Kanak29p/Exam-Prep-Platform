@@ -199,7 +199,7 @@ export function PracticePage() {
                     <div className="text-3xl font-bold">
                       {module.sections.length}
                     </div>
-                    <div className="text-white/90">Total Questions</div>
+                    <div className="text-white/90">Modules</div>
                   </div>
                 </div>
               </div>

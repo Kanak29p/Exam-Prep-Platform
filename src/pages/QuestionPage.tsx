@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { AudioRecorder } from "../components/organisms/AudioRecorder";
 import { API_BASE_URL } from "../lib/api";
@@ -12,18 +12,21 @@ type Question = {
   TITLE?: string;
   CATEGORY?: string;
   SUB_CATEGORY?: string;
-  RECORDING_TIME?: string;
-  AUDIO_WAITING_TIME?: string;
-  RECORDING_WAITING_TIME?: string;
+  RECORDING_TIME?: string | number;
+  AUDIO_WAITING_TIME?: string | number;
+  RECORDING_WAITING_TIME?: string | number;
 };
 
-function parseTimeToSeconds(timeStr?: string, defaultSec = 40): number {
-  if (!timeStr) return defaultSec;
-  if (!timeStr.includes(":")) {
-    const parsed = parseInt(timeStr, 10);
+function parseTimeToSeconds(timeStr?: string | number, defaultSec = 40): number {
+  if (timeStr === undefined || timeStr === null) return defaultSec;
+  if (typeof timeStr === "number") return timeStr;
+  const str = String(timeStr).trim();
+  if (!str) return defaultSec;
+  if (!str.includes(":")) {
+    const parsed = parseInt(str, 10);
     return isNaN(parsed) ? defaultSec : parsed;
   }
-  const parts = timeStr.split(":");
+  const parts = str.split(":");
   if (parts.length === 3) {
     const hours = parseInt(parts[0], 10);
     const minutes = parseInt(parts[1], 10);
@@ -41,8 +44,37 @@ function parseTimeToSeconds(timeStr?: string, defaultSec = 40): number {
   return defaultSec;
 }
 
+function escapeRegExp(str: string) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function highlightText(text: string | undefined | null, search: string) {
+  const safeText = text || "";
+  const query = search.trim();
+  if (!query) return <span>{safeText}</span>;
+
+  const regex = new RegExp(`(${escapeRegExp(query)})`, "gi");
+  const parts = safeText.split(regex);
+
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.toLowerCase() === query.toLowerCase() ? (
+          <mark key={i} className="bg-yellow-200 dark:bg-yellow-800/80 text-gray-900 dark:text-white rounded-sm px-0.5">
+            {part}
+          </mark>
+        ) : (
+          part
+        )
+      )}
+    </>
+  );
+}
+
 export function QuestionPage() {
   const { module, section, questionId } = useParams();
+  const [searchParams] = useSearchParams();
+  const searchQuery = searchParams.get("search") || "";
   const [question, setQuestion] = useState<Question | null>(null);
   const [loading, setLoading] = useState(true);
   const [instruction, setInstruction] = useState<string>("");
@@ -186,12 +218,23 @@ export function QuestionPage() {
       
       setTriggerRecord(false);
 
-      if (question.AUDIO_URL && audioWait > 0) {
-        setTimerStage("audio-countdown");
-        setCountdownVal(audioWait);
+      if (question.AUDIO_URL) {
+        if (audioWait > 0) {
+          setTimerStage("audio-countdown");
+          setCountdownVal(audioWait);
+        } else {
+          setTimerStage("audio-playing");
+          setCountdownVal(0);
+        }
       } else {
-        setTimerStage("rec-countdown");
-        setCountdownVal(recWait);
+        if (recWait > 0) {
+          setTimerStage("rec-countdown");
+          setCountdownVal(recWait);
+        } else {
+          setTimerStage("recording");
+          setTriggerRecord(true);
+          setCountdownVal(0);
+        }
       }
     } else if (question && question.CATEGORY?.toLowerCase() === "writing") {
       setTimerStage("idle");
@@ -214,6 +257,24 @@ export function QuestionPage() {
     }
   }, [question]);
 
+  // Handle playing audio automatically when stage is audio-playing
+  useEffect(() => {
+    if (timerStage === "audio-playing" && audioPlayer) {
+      audioPlayer.play().catch((err) => {
+        console.error("Autoplay blocked or failed:", err);
+        const recWait = parseTimeToSeconds(question?.RECORDING_WAITING_TIME, 0);
+        if (recWait > 0) {
+          setTimerStage("rec-countdown");
+          setCountdownVal(recWait);
+        } else {
+          setTimerStage("recording");
+          setTriggerRecord(true);
+          setCountdownVal(0);
+        }
+      });
+    }
+  }, [timerStage, audioPlayer, question]);
+
   // Run the active countdown timer stage
   useEffect(() => {
     if (!question || question.CATEGORY?.toLowerCase() !== "speaking") return;
@@ -225,20 +286,7 @@ export function QuestionPage() {
         setCountdownVal((prev) => {
           if (prev <= 1) {
             clearInterval(intervalId);
-            // Play audio
-            if (audioPlayer) {
-              setTimerStage("audio-playing");
-              audioPlayer.play().catch((err) => {
-                console.error("Autoplay blocked or failed:", err);
-                const recWait = parseTimeToSeconds(question.RECORDING_WAITING_TIME, 0);
-                setTimerStage("rec-countdown");
-                setCountdownVal(recWait);
-              });
-            } else {
-              const recWait = parseTimeToSeconds(question.RECORDING_WAITING_TIME, 0);
-              setTimerStage("rec-countdown");
-              setCountdownVal(recWait);
-            }
+            setTimerStage("audio-playing");
             return 0;
           }
           return prev - 1;
@@ -261,7 +309,7 @@ export function QuestionPage() {
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  }, [timerStage, question, audioPlayer]);
+  }, [timerStage, question]);
 
   useEffect(() => {
     const fetchQuestionAndList = async () => {
@@ -388,17 +436,22 @@ export function QuestionPage() {
   return (
     <div className="min-h-screen pt-20 px-6">
       <h1 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">
-        Question {displayNumber !== null ? displayNumber : question.QUESTIONID}{question.TITLE ? `: ${question.TITLE}` : ""}
+        Question {displayNumber !== null ? displayNumber : question.QUESTIONID}
+        {question.TITLE ? (
+          <>
+            : {highlightText(question.TITLE, searchQuery)}
+          </>
+        ) : ""}
       </h1>
 
       {instruction && (
         <div className="mb-4 p-4 bg-yellow-100 dark:bg-yellow-900 rounded-lg">
           <h2 className="font-bold mb-1">Instruction</h2>
-          <p>{instruction}</p>
+          <p>{highlightText(instruction, searchQuery)}</p>
         </div>
       )}
 
-      <p className="mb-6 text-lg"> {question?.QUESTION_TEXT || "No question text available"}</p>
+      <p className="mb-6 text-lg"> {highlightText(question?.QUESTION_TEXT || "No question text available", searchQuery)}</p>
 
       {question.CATEGORY?.toLowerCase() === "speaking" && timerStage !== "idle" && (
         <div className={`mb-6 p-4 rounded-xl border transition-all duration-300 shadow-sm ${
@@ -496,8 +549,14 @@ export function QuestionPage() {
           onEnded={() => {
             if (timerStage === "audio-playing") {
               const recWait = parseTimeToSeconds(question.RECORDING_WAITING_TIME, 0);
-              setTimerStage("rec-countdown");
-              setCountdownVal(recWait);
+              if (recWait > 0) {
+                setTimerStage("rec-countdown");
+                setCountdownVal(recWait);
+              } else {
+                setTimerStage("recording");
+                setTriggerRecord(true);
+                setCountdownVal(0);
+              }
             }
           }}
         >
@@ -538,18 +597,29 @@ export function QuestionPage() {
                   opt.label ? (
                     <div>
                       <span className="font-bold mr-2">{opt.label}.</span>
-                      {opt.text}
+                      {highlightText(opt.text, searchQuery)}
                     </div>
                   ) : opt.blank ? (
                     <div>
                       <span className="font-bold mr-2">Blank {opt.blank}:</span>
-                      {Array.isArray(opt.options) ? opt.options.join(", ") : JSON.stringify(opt)}
+                      {Array.isArray(opt.options) ? (
+                        <>
+                          {opt.options.map((option: string, optionIdx: number) => (
+                            <span key={optionIdx}>
+                              {highlightText(option, searchQuery)}
+                              {optionIdx < opt.options.length - 1 ? ", " : ""}
+                            </span>
+                          ))}
+                        </>
+                      ) : (
+                        highlightText(JSON.stringify(opt), searchQuery)
+                      )}
                     </div>
                   ) : (
-                    JSON.stringify(opt)
+                    highlightText(JSON.stringify(opt), searchQuery)
                   )
                 ) : (
-                  String(opt)
+                  highlightText(String(opt), searchQuery)
                 )}
               </div>
             ))}

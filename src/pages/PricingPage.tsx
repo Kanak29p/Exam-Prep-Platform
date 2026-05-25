@@ -108,10 +108,10 @@ export function PricingPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
-              className={`relative rounded-2xl overflow-hidden ${
+              className={`relative rounded-2xl overflow-hidden transition-all duration-300 ${
                 plan.popular
-                  ? 'transform lg:scale-110 shadow-2xl'
-                  : 'shadow-lg'
+                  ? 'transform lg:scale-110 shadow-2xl z-10'
+                  : 'shadow-lg hover:scale-105 hover:lg:scale-110 hover:shadow-2xl hover:z-10'
               }`}
             >
               {plan.popular && (
