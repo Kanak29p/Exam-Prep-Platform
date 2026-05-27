@@ -6,7 +6,7 @@ import {
   useLocation,
 } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
-import { Toaster } from "sonner";
+import { Toaster, toast } from "sonner";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { Navbar } from "./components/organisms/Navbar";
 import { ChatSupport } from "./components/organisms/ChatSupport";
@@ -26,8 +26,10 @@ import { PageErrorBoundary } from "./components/organisms/PageErrorBoundary";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { SectionQuestionsPage } from "./pages/SectionQuestionsPage";
 import { QuestionPage } from "./pages/QuestionPage";
-
-
+import { messaging } from "./lib/firebase";
+import { getToken, onMessage } from "firebase/messaging";
+import { useEffect } from "react";
+import { API_BASE_URL } from "./lib/api";
 
 function AuthLoading() {
   return (
@@ -58,6 +60,77 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 function AppContent() {
   const location = useLocation();
   const hideChatSupport = ["/login", "/signup"].includes(location.pathname);
+  const { isAuthenticated } = useAuth();
+
+  useEffect(() => {
+    if (!isAuthenticated || !messaging) return;
+
+    const setupNotifications = async () => {
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+          // Register the Service Worker explicitly using import.meta.env.BASE_URL
+          const swUrl = `${import.meta.env.BASE_URL || '/'}firebase-messaging-sw.js`;
+          let registration;
+          try {
+            registration = await navigator.serviceWorker.register(swUrl);
+            console.log("[FCM SW] Service Worker registered:", registration.scope);
+          } catch (swErr) {
+            console.warn("[FCM SW] Registration failed, falling back to ready:", swErr);
+            registration = await navigator.serviceWorker.ready;
+          }
+
+          const token = await getToken(messaging, {
+            vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
+            serviceWorkerRegistration: registration
+          });
+
+          if (token) {
+            console.log("[FCM] Client Token:", token);
+            const jwtToken = localStorage.getItem("token");
+            await fetch(`${API_BASE_URL}/api/notifications/token`, {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${jwtToken}`,
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({ token, deviceType: "web" })
+            });
+          }
+        }
+      } catch (err) {
+        console.error("[FCM] Failed to initialize notifications:", err);
+      }
+    };
+
+    setupNotifications();
+
+    // Setup foreground message handler
+    const unsubscribe = onMessage(messaging, (payload) => {
+      console.log("[FCM] Foreground message received:", payload);
+      const title = payload.notification?.title || "Notification";
+      const body = payload.notification?.body || "";
+      const clickUrl = payload.data?.url;
+
+      toast.info(title, {
+        description: body,
+        duration: 8000,
+        action: clickUrl ? {
+          label: "View",
+          onClick: () => {
+            const baseUrl = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+            let finalUrl = clickUrl;
+            if (clickUrl.startsWith("/") && !clickUrl.startsWith(baseUrl + "/")) {
+              finalUrl = `${baseUrl}${clickUrl}`;
+            }
+            window.location.href = finalUrl;
+          }
+        } : undefined
+      });
+    });
+
+    return () => unsubscribe();
+  }, [isAuthenticated]);
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-white">

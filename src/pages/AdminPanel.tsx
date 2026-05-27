@@ -9,8 +9,10 @@ import {
   Edit,
   Trash2,
   Download,
+  Bell,
 } from "lucide-react";
 import { API_BASE_URL } from "../lib/api";
+import { toast } from "sonner";
 import {
   LineChart,
   Line,
@@ -82,9 +84,77 @@ export function AdminPanel() {
   }, []);
 
   const [activeTab, setActiveTab] = useState<
-    "overview" | "students" | "questions" | "payments"
+    "overview" | "students" | "questions" | "payments" | "notifications"
   >("overview");
   const [searchTerm, setSearchTerm] = useState("");
+
+  const [broadcastTitle, setBroadcastTitle] = useState("");
+  const [broadcastBody, setBroadcastBody] = useState("");
+  const [broadcastUrl, setBroadcastUrl] = useState("/dashboard");
+  const [broadcasting, setBroadcasting] = useState(false);
+  const [subscribersCount, setSubscribersCount] = useState(0);
+
+  useEffect(() => {
+    if (activeTab === "notifications") {
+      const fetchSubscribers = async () => {
+        try {
+          const token = localStorage.getItem("token");
+          const res = await fetch(`${API_BASE_URL}/api/notifications/subscribers-count`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setSubscribersCount(data.count);
+          }
+        } catch (err) {
+          console.error("Error fetching subscribers count:", err);
+        }
+      };
+      fetchSubscribers();
+    }
+  }, [activeTab]);
+
+  const handleBroadcastSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!broadcastTitle.trim() || !broadcastBody.trim()) {
+      toast.error("Please fill in all required fields.");
+      return;
+    }
+
+    try {
+      setBroadcasting(true);
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_BASE_URL}/api/notifications/send-all`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: broadcastTitle,
+          body: broadcastBody,
+          url: broadcastUrl,
+        }),
+      });
+
+      if (res.ok) {
+        toast.success("Broadcast push notification sent successfully to all users!");
+        setBroadcastTitle("");
+        setBroadcastBody("");
+        setBroadcastUrl("/dashboard");
+      } else {
+        const errData = await res.json();
+        toast.error(errData.message || "Failed to send broadcast notification");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Error communicating with broadcast API");
+    } finally {
+      setBroadcasting(false);
+    }
+  };
 
   const filteredStudents = students.filter(
   (student) =>
@@ -139,6 +209,7 @@ export function AdminPanel() {
               { id: "students", label: "Students", icon: Users },
               { id: "questions", label: "Questions", icon: BookOpen },
               { id: "payments", label: "Payments", icon: CreditCard },
+              { id: "notifications", label: "Notifications", icon: Bell },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -450,6 +521,93 @@ export function AdminPanel() {
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Notifications Tab */}
+            {activeTab === "notifications" && (
+              <div className="space-y-6 max-w-2xl">
+                <div>
+                  <h3 className="text-xl font-bold mb-2">Broadcast Push Notification</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                    Compose and send a live push notification to all registered student devices.
+                  </p>
+                </div>
+
+                <div className="bg-gray-50 dark:bg-gray-750 p-4 rounded-lg flex items-center justify-between border border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-100 dark:bg-blue-900/20 text-blue-600 rounded-lg">
+                      <Users className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-sm">Active Registered Devices</h4>
+                      <p className="text-xs text-gray-500">Devices subscribed to the 'all_users' broadcast topic</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-2xl font-bold text-gray-800 dark:text-gray-100">{subscribersCount}</span>
+                    <span className="text-xs text-gray-400 block">subscribers</span>
+                  </div>
+                </div>
+
+                <form onSubmit={handleBroadcastSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Notification Title</label>
+                    <input
+                      type="text"
+                      required
+                      value={broadcastTitle}
+                      onChange={(e) => setBroadcastTitle(e.target.value)}
+                      placeholder="e.g. Special Live Masterclass Tonight! 🚀"
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Message Body</label>
+                    <textarea
+                      required
+                      rows={3}
+                      value={broadcastBody}
+                      onChange={(e) => setBroadcastBody(e.target.value)}
+                      placeholder="e.g. Join us at 8:00 PM to learn the best tips and tricks for PTE Speaking Read Aloud. Don't miss it!"
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Target Action Page (Optional Redirect Link)</label>
+                    <select
+                      value={broadcastUrl}
+                      onChange={(e) => setBroadcastUrl(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 bg-white"
+                    >
+                      <option value="/dashboard">Dashboard</option>
+                      <option value="/practice">Practice Section</option>
+                      <option value="/mock-tests">Mock Tests Page</option>
+                      <option value="/live-classes">Live Classes Page</option>
+                      <option value="/forum">Discussion Forum</option>
+                    </select>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={broadcasting}
+                    className="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg font-bold hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    {broadcasting ? (
+                      <>
+                        <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                        Sending Broadcast...
+                      </>
+                    ) : (
+                      <>
+                        <Bell className="h-5 w-5 animate-bounce" />
+                        Send Broadcast to All Users
+                      </>
+                    )}
+                  </button>
+                </form>
               </div>
             )}
           </div>
