@@ -1707,7 +1707,12 @@ export function MockTestPage() {
 
   // Filtered available tests
   const filteredTests = dbTests.filter(test => {
-    return activeTab === 'available' ? test.STATUS === 'active' : false;
+    if (activeTab !== 'available') return false;
+    if (test.STATUS !== 'active') return false;
+    
+    // Hide test if there's already a pending/in-progress attempt for it
+    const hasPendingAttempt = pendingAttempts.some(attempt => attempt.MOCK_TEST_ID === test.ID);
+    return !hasPendingAttempt;
   });
 
   return (
