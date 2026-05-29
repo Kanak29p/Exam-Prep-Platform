@@ -9,32 +9,42 @@ import { API_BASE_URL } from "../lib/api";
 export function Dashboard() {
   const { user } = useAuth();
   const [dashboardData, setDashboardData] = useState<any>(null);
+  const [dbTests, setDbTests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchDashboard = async () => {
+    const fetchDashboardData = async () => {
       try {
         setLoading(true);
         const token = localStorage.getItem("token");
-        const response = await fetch(
-          `${API_BASE_URL}/api/auth/dashboard`,
-          {
-            method: "GET",
+        
+        const [dashRes, testsRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/api/auth/dashboard`, {
             headers: {
               Authorization: `Bearer ${token}`,
             },
-          }
-        );
+          }),
+          fetch(`${API_BASE_URL}/api/mock-tests`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          })
+        ]);
 
-        if (response.status === 401) {
+        if (dashRes.status === 401 || testsRes.status === 401) {
           localStorage.removeItem("token");
           localStorage.removeItem("user");
           window.location.reload();
           return;
         }
 
-        const data = await response.json();
-        setDashboardData(data);
+        const [dashData, testsData] = await Promise.all([
+          dashRes.ok ? dashRes.json() : null,
+          testsRes.ok ? testsRes.json() : []
+        ]);
+
+        setDashboardData(dashData);
+        setDbTests(testsData || []);
       } catch (error) {
         console.error(error);
       } finally {
@@ -42,7 +52,7 @@ export function Dashboard() {
       }
     };
 
-    fetchDashboard();
+    fetchDashboardData();
   }, []);
 
   if (loading) {
@@ -87,14 +97,16 @@ export function Dashboard() {
   const scoreData = dashboardData?.scoreProgress || [];
   const moduleScores = dashboardData?.modulePerformance || [];
   const skillRadar = dashboardData?.skillRadar || [];
+  const upcomingTests = dbTests.filter((test: any) => test.STATUS === 'upcoming');
+  const activeTestsCount = dbTests.filter((test: any) => test.STATUS === 'active').length;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pt-20 px-4 pb-12 animate-fade-in">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Welcome back, {user?.name}! 👋</h1>
-          <p className="text-gray-600 dark:text-gray-400">Here's your PTE preparation progress</p>
+          <h1 className="text-2xl sm:text-3xl font-bold mb-2 break-words">Welcome back, {user?.name}! 👋</h1>
+          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">Here's your PTE preparation progress</p>
         </div>
 
         {/* Stats Grid */}
@@ -122,8 +134,8 @@ export function Dashboard() {
               <Award className="h-8 w-8 text-purple-500" />
               <Trophy className="h-6 w-6 text-yellow-500" />
             </div>
-            <div className="text-4xl font-bold mb-1">{dashboardData?.mockTestsCompleted || 0}/15</div>
-            <div className="text-gray-600 dark:text-gray-400">Mock Tests Completed</div>
+            <div className="text-4xl font-bold mb-1">{dashboardData?.mockTestsCompleted || 0}/{activeTestsCount}</div>
+            <div className="text-gray-650 dark:text-gray-400">Mock Tests Completed</div>
           </div>
 
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700 transform hover:scale-[1.02] transition-all">
@@ -141,36 +153,38 @@ export function Dashboard() {
           <div className="lg:col-span-2 space-y-6">
             {/* Progress Chart */}
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                 <h2 className="text-xl font-bold">Score Progress</h2>
-                <select className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700">
+                <select className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 w-full sm:w-auto text-sm">
                   <option>Last 7 days</option>
                   <option>Last 30 days</option>
                   <option>Last 3 months</option>
                 </select>
               </div>
               <ErrorBoundary>
-              <div className="relative">
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={scoreData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                    <XAxis dataKey="date" stroke="#9ca3af" />
-                    <YAxis stroke="#9ca3af" />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: '#1f2937',
-                        border: 'none',
-                        borderRadius: '0.5rem',
-                        color: '#fff',
-                      }}
-                    />
-                    <Line type="monotone" dataKey="score" stroke="#3b82f6" strokeWidth={3} dot={{ fill: '#3b82f6', r: 5 }} />
-                  </LineChart>
-                </ResponsiveContainer>
-                {scoreData.length === 0 && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/60 dark:bg-gray-800/60 backdrop-blur-[1px] rounded-lg">
-                    <p className="text-gray-600 dark:text-gray-300 font-semibold text-center">No progress data available yet.</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Start practicing to see your score trends!</p>
+              <div className="relative min-h-[300px] flex items-center justify-center">
+                {scoreData && scoreData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={scoreData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                      <XAxis dataKey="date" stroke="#9ca3af" />
+                      <YAxis stroke="#9ca3af" />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: '#1f2937',
+                          border: 'none',
+                          borderRadius: '0.5rem',
+                          color: '#fff',
+                        }}
+                      />
+                      <Line type="monotone" dataKey="score" stroke="#3b82f6" strokeWidth={3} dot={{ fill: '#3b82f6', r: 5 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex flex-col items-center justify-center p-6 text-center w-full">
+                    <TrendingUp className="h-12 w-12 text-gray-400 dark:text-gray-600 mb-3 animate-pulse" />
+                    <p className="text-gray-600 dark:text-gray-300 font-semibold text-base">No progress data available yet.</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 max-w-sm">Start practicing to see your score trends!</p>
                   </div>
                 )}
               </div>
@@ -181,27 +195,29 @@ export function Dashboard() {
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
               <h2 className="text-xl font-bold mb-6">Module Performance</h2>
               <ErrorBoundary>
-              <div className="relative">
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={moduleScores}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                    <XAxis dataKey="module" stroke="#9ca3af" />
-                    <YAxis stroke="#9ca3af" />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: '#1f2937',
-                        border: 'none',
-                        borderRadius: '0.5rem',
-                        color: '#fff',
-                      }}
-                    />
-                    <Bar dataKey="score" fill="#8b5cf6" radius={[8, 8, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-                {moduleScores.every((m: any) => m.score === 0) && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/60 dark:bg-gray-800/60 backdrop-blur-[1px] rounded-lg">
-                    <p className="text-gray-600 dark:text-gray-300 font-semibold text-center">No module performance data available yet.</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Submit practice questions to see module averages.</p>
+              <div className="relative min-h-[300px] flex items-center justify-center">
+                {moduleScores && moduleScores.length > 0 && !moduleScores.every((m: any) => m.score === 0) ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={moduleScores}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                      <XAxis dataKey="module" stroke="#9ca3af" />
+                      <YAxis stroke="#9ca3af" />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: '#1f2937',
+                          border: 'none',
+                          borderRadius: '0.5rem',
+                          color: '#fff',
+                        }}
+                      />
+                      <Bar dataKey="score" fill="#8b5cf6" radius={[8, 8, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex flex-col items-center justify-center p-6 text-center w-full">
+                    <BarChart3 className="h-12 w-12 text-gray-400 dark:text-gray-600 mb-3 animate-pulse" />
+                    <p className="text-gray-600 dark:text-gray-300 font-semibold text-base">No module performance data available yet.</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 max-w-sm">Submit practice questions to see module averages.</p>
                   </div>
                 )}
               </div>
@@ -240,18 +256,21 @@ export function Dashboard() {
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
               <h2 className="text-xl font-bold mb-6">Skill Analysis</h2>
               <ErrorBoundary>
-              <div className="relative">
-                <ResponsiveContainer width="100%" height={300}>
-                  <RadarChart data={skillRadar}>
-                    <PolarGrid stroke="#374151" />
-                    <PolarAngleAxis dataKey="skill" stroke="#9ca3af" />
-                    <PolarRadiusAxis stroke="#9ca3af" />
-                    <Radar dataKey="score" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} />
-                  </RadarChart>
-                </ResponsiveContainer>
-                {skillRadar.every((s: any) => s.score === 0) && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-white/60 dark:bg-gray-800/60 backdrop-blur-[1px] rounded-lg">
-                    <p className="text-gray-500 dark:text-gray-400 font-semibold text-center text-sm">No skill analysis available yet.</p>
+              <div className="relative min-h-[300px] flex items-center justify-center">
+                {skillRadar && skillRadar.length > 0 && !skillRadar.every((s: any) => s.score === 0) ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <RadarChart data={skillRadar}>
+                      <PolarGrid stroke="#374151" />
+                      <PolarAngleAxis dataKey="skill" stroke="#9ca3af" />
+                      <PolarRadiusAxis stroke="#9ca3af" />
+                      <Radar dataKey="score" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex flex-col items-center justify-center p-6 text-center w-full">
+                    <Target className="h-12 w-12 text-gray-400 dark:text-gray-600 mb-3 animate-pulse" />
+                    <p className="text-gray-600 dark:text-gray-300 font-semibold text-base">No skill analysis available yet.</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 max-w-sm">Complete mock tests or section exercises to generate your skill profile.</p>
                   </div>
                 )}
               </div>
@@ -265,16 +284,21 @@ export function Dashboard() {
                 <Calendar className="h-5 w-5 text-gray-400" />
               </div>
               <div className="space-y-3">
-                {[
-                  { title: 'Full Mock Test #13', date: 'May 12, 2026', time: '10:00 AM' },
-                  { title: 'Speaking Module Test', date: 'May 14, 2026', time: '2:00 PM' },
-                  { title: 'Writing Practice Test', date: 'May 15, 2026', time: '4:00 PM' },
-                ].map((test, index) => (
-                  <div key={index} className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-700 dark:to-gray-700 rounded-lg border border-blue-100 dark:border-gray-600">
-                    <div className="font-semibold mb-1">{test.title}</div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">{test.date} • {test.time}</div>
+                {upcomingTests.length > 0 ? (
+                  upcomingTests.slice(0, 3).map((test) => (
+                    <div key={test.ID} className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-700 dark:to-gray-700 rounded-lg border border-blue-100 dark:border-gray-600">
+                      <div className="font-semibold mb-1 text-gray-850 dark:text-white leading-snug">{test.TITLE}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        {test.TOTAL_DURATION_MINUTES} Mins • {test.TOTAL_QUESTIONS} Questions
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 border border-dashed border-gray-250 dark:border-gray-700 rounded-lg text-gray-500 dark:text-gray-400 text-sm">
+                    <p className="font-semibold">No upcoming mock tests</p>
+                    <p className="text-xs mt-1">Check back later for scheduled exams!</p>
                   </div>
-                ))}
+                )}
               </div>
               <Link to="/mock-tests" className="mt-4 block text-center py-2 text-blue-600 hover:underline font-semibold">
                 View All Tests
