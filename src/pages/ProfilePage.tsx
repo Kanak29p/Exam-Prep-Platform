@@ -47,12 +47,10 @@ const getCountryData = (countryVal: string) => {
   return null;
 };
 
-const stripDialCode = (phone: string, countryCode: string) => {
+const stripDialCode = (phone: string, dialCode: string) => {
   if (!phone) return "";
-  const cData = getCountryData(countryCode);
-  if (!cData) return phone;
-  const dial = cData.dialCode;
-  const cleanDial = dial.replace(/\D/g, "");
+  if (!dialCode) return phone.replace(/\D/g, "");
+  const cleanDial = dialCode.replace(/\D/g, "");
   const cleanPhone = phone.replace(/\D/g, "");
   if (cleanPhone.startsWith(cleanDial)) {
     return cleanPhone.substring(cleanDial.length);
@@ -70,6 +68,7 @@ export function ProfilePage() {
     name: '',
     email: '',
     phone: '',
+    dialCode: '',
     location: '',
     targetScore: '' as string | number,
     examDate: '',
@@ -86,13 +85,17 @@ export function ProfilePage() {
     if (user) {
       let detectedCountry = user.country || '';
       let rawPhone = user.phone || '';
+      let detectedDialCode = '';
       
       if (detectedCountry) {
         const cData = getCountryData(detectedCountry);
         if (cData) {
           detectedCountry = cData.code;
+          detectedDialCode = cData.dialCode;
         }
-      } else if (rawPhone) {
+      }
+      
+      if (rawPhone) {
         const cleanPhone = rawPhone.replace(/\D/g, '');
         const sortedCountries = [...Country.getAllCountries()].sort(
           (a, b) => b.phonecode.length - a.phonecode.length
@@ -100,7 +103,10 @@ export function ProfilePage() {
         for (const c of sortedCountries) {
           const cleanDial = c.phonecode.replace(/\D/g, '');
           if (cleanPhone.startsWith(cleanDial)) {
-            detectedCountry = c.isoCode;
+            if (!detectedCountry) {
+              detectedCountry = c.isoCode;
+            }
+            detectedDialCode = c.phonecode.startsWith('+') ? c.phonecode : `+${c.phonecode}`;
             break;
           }
         }
@@ -132,12 +138,13 @@ export function ProfilePage() {
         }
       }
 
-      const cleanPhone = stripDialCode(rawPhone, detectedCountry);
+      const cleanPhone = stripDialCode(rawPhone, detectedDialCode);
 
       setProfileData({
         name: user.name || '',
         email: user.email || '',
         phone: cleanPhone,
+        dialCode: detectedDialCode || '+1',
         location: user.location || '',
         targetScore: user.targetScore || '',
         examDate: user.examDate ? user.examDate.substring(0, 10) : '',
@@ -151,6 +158,58 @@ export function ProfilePage() {
     }
   }, [user]);
 
+  const [hasGeoFetched, setHasGeoFetched] = useState(false);
+
+  // Auto-detect location on load if country is empty
+  useEffect(() => {
+    if (user && !user.country && !hasGeoFetched) {
+      setHasGeoFetched(true);
+      const autoDetectLocation = async () => {
+        try {
+          const res = await fetch('https://ipapi.co/json/');
+          if (res.ok) {
+            const geoData = await res.json();
+            const countryCode = geoData.country_code; // e.g. "IN"
+            const regionName = geoData.region; // e.g. "Maharashtra"
+            const cityName = geoData.city; // e.g. "Mumbai"
+
+            const matchedCountry = getCountryData(countryCode);
+            if (matchedCountry) {
+              let matchedState = '';
+              let matchedCity = '';
+
+              const states = State.getStatesOfCountry(countryCode);
+              const stateObj = states.find(
+                s => s.name.toLowerCase() === regionName.toLowerCase() || s.isoCode.toLowerCase() === regionName.toLowerCase()
+              );
+              if (stateObj) {
+                matchedState = stateObj.name;
+                const cities = City.getCitiesOfState(countryCode, stateObj.isoCode);
+                const cityObj = cities.find(c => c.name.toLowerCase() === cityName.toLowerCase());
+                if (cityObj) {
+                  matchedCity = cityObj.name;
+                }
+              }
+
+              setProfileData(prev => ({
+                ...prev,
+                country: countryCode,
+                state: matchedState,
+                city: matchedCity,
+                dialCode: matchedCountry.dialCode,
+              }));
+
+              toast.info(`Auto-detected location: ${cityName ? cityName + ', ' : ''}${matchedState ? matchedState + ', ' : ''}${matchedCountry.name}`);
+            }
+          }
+        } catch (err) {
+          console.warn("Failed to auto-detect location:", err);
+        }
+      };
+      autoDetectLocation();
+    }
+  }, [user, hasGeoFetched]);
+
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const rawVal = e.target.value;
     const cleanVal = rawVal.replace(/\D/g, '');
@@ -163,11 +222,13 @@ export function ProfilePage() {
   const handleCountryChange = (countryCode: string) => {
     const limit = getPhoneLimit(countryCode);
     const truncatedPhone = profileData.phone.replace(/\D/g, '').substring(0, limit);
+    const cData = getCountryData(countryCode);
     setProfileData(prev => ({
       ...prev,
       country: countryCode,
       state: '',
       city: '',
+      dialCode: cData ? cData.dialCode : prev.dialCode,
       phone: truncatedPhone
     }));
   };
@@ -192,14 +253,12 @@ export function ProfilePage() {
     if (profileData.phone) {
       const cData = getCountryData(profileData.country);
       const limit = getPhoneLimit(profileData.country);
-      if (cData) {
-        if (limit !== 15 && profileData.phone.length !== limit) {
-          toast.error(`Phone number must be exactly ${limit} digits for ${cData.name}.`);
-          return;
-        } else if (limit === 15 && (profileData.phone.length < 7 || profileData.phone.length > 15)) {
-          toast.error(`Phone number must be between 7 and 15 digits.`);
-          return;
-        }
+      if (limit !== 15 && profileData.phone.length !== limit) {
+        toast.error(`Phone number must be exactly ${limit} digits${cData ? ` for ${cData.name}` : ''}.`);
+        return;
+      } else if (limit === 15 && (profileData.phone.length < 7 || profileData.phone.length > 15)) {
+        toast.error(`Phone number must be between 7 and 15 digits.`);
+        return;
       }
     }
 
@@ -211,11 +270,15 @@ export function ProfilePage() {
         return;
       }
 
-      const cData = getCountryData(profileData.country);
-      const fullPhone = profileData.phone && cData
-        ? `${cData.dialCode}${profileData.phone}`
-        : profileData.phone;
+      let finalDialCode = profileData.dialCode;
+      if (finalDialCode && !finalDialCode.startsWith('+')) {
+        finalDialCode = `+${finalDialCode}`;
+      }
+      const fullPhone = profileData.phone
+        ? `${finalDialCode}${profileData.phone}`
+        : '';
 
+      const cData = getCountryData(profileData.country);
       const displayLocation = profileData.country 
         ? [profileData.city, profileData.state, cData ? cData.name : profileData.country].filter(Boolean).join(', ')
         : profileData.location;
@@ -414,20 +477,30 @@ export function ProfilePage() {
                     {/* Phone Number Input */}
                     <div>
                       <label className="block text-sm font-medium mb-2">Phone Number</label>
-                      <div className="flex rounded-lg overflow-hidden">
-                        {/* Flag and Code Prefix */}
-                        <div className="flex items-center gap-1.5 px-3 border border-r-0 border-gray-300 dark:border-gray-600 rounded-l-lg bg-gray-50 dark:bg-gray-800 text-gray-500 min-w-[75px] justify-center select-none border-solid">
+                      <div className="flex rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent">
+                        {/* Flag and Editable Dial Code Prefix */}
+                        <div className="flex items-center gap-1.5 px-3 bg-gray-50 dark:bg-gray-800 border-r border-gray-300 dark:border-gray-600 select-none">
                           {(() => {
                             const cData = getCountryData(profileData.country);
                             return cData ? (
-                              <>
-                                <span className="text-lg">{cData.flag}</span>
-                                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{cData.dialCode}</span>
-                              </>
+                              <span className="text-lg shrink-0">{cData.flag}</span>
                             ) : (
-                              <Phone className="h-4 w-4 text-gray-400" />
+                              <Phone className="h-4 w-4 text-gray-400 shrink-0" />
                             );
                           })()}
+                          <input
+                            type="text"
+                            value={profileData.dialCode}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (/^\+?\d{0,4}$/.test(val)) {
+                                setProfileData(prev => ({ ...prev, dialCode: val }));
+                              }
+                            }}
+                            disabled={!isEditing || isSaving}
+                            placeholder="+1"
+                            className="w-14 bg-transparent border-none text-sm font-semibold text-gray-700 dark:text-gray-300 focus:outline-none text-center"
+                          />
                         </div>
                         <input
                           type="tel"
@@ -438,7 +511,7 @@ export function ProfilePage() {
                             const limit = getPhoneLimit(profileData.country);
                             return limit !== 15 ? `Enter ${limit}-digit number` : "Select country first";
                           })()}
-                          className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-r-lg dark:bg-gray-700 disabled:bg-gray-50 dark:disabled:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="w-full px-4 py-3 border-none bg-white dark:bg-gray-700 disabled:bg-gray-50 dark:disabled:bg-gray-900 focus:outline-none"
                         />
                       </div>
                     </div>
