@@ -108,15 +108,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const firebaseToken = await firebaseUser.getIdToken();
 
-      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ firebaseToken }),
-      });
+      let response: Response;
+      try {
+        response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ firebaseToken }),
+        });
+      } catch (networkErr) {
+        // Backend unreachable — log out of Firebase so the UI returns to a clean state.
+        await signOut(auth).catch(() => {});
+        throw new Error(
+          `Cannot reach the server at ${API_BASE_URL}. Make sure the backend is running.`,
+        );
+      }
 
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
+        // Keep frontend session in sync with backend rejection.
+        await signOut(auth).catch(() => {});
         throw new Error(data.message || "Login failed");
       }
 
@@ -210,36 +221,53 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       setLoading(true);
 
-      // 1. Firebase Google Login
       const result = await signInWithPopup(auth, provider);
-
       const googleUser = result.user;
-
-      // 2. Get Firebase token
       const firebaseToken = await googleUser.getIdToken();
 
-      // 3. Call BACKEND LOGIN API
-      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          firebaseToken,
-        }),
-      });
+      const callLogin = () =>
+        fetch(`${API_BASE_URL}/api/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ firebaseToken }),
+        });
 
-      const data = await response.json();
-
-      // 4. If user not in DB
-      if (!response.ok) {
-        // logout firebase session
-        await signOut(auth);
-
-        throw new Error(data.message || "Please signup first");
+      let response: Response;
+      try {
+        response = await callLogin();
+      } catch (networkErr) {
+        await signOut(auth).catch(() => {});
+        throw new Error(
+          `Cannot reach the server at ${API_BASE_URL}. Make sure the backend is running.`,
+        );
       }
 
-      // 5. Create frontend user object
+      let data = await response.json().catch(() => ({}));
+
+      // If user does not exist yet, auto-signup (Google identity is trusted), then retry login.
+      if (response.status === 404) {
+        const signupRes = await fetch(`${API_BASE_URL}/api/auth/signup`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: googleUser.displayName || googleUser.email?.split("@")[0],
+            email: googleUser.email,
+          }),
+        });
+        if (!signupRes.ok) {
+          await signOut(auth).catch(() => {});
+          const signupData = await signupRes.json().catch(() => ({}));
+          throw new Error(signupData.message || "Signup failed");
+        }
+        response = await callLogin();
+        data = await response.json().catch(() => ({}));
+      }
+
+      if (!response.ok) {
+        await signOut(auth).catch(() => {});
+        throw new Error(data.message || "Google login failed");
+      }
+
       const userData: User = {
         id: data.user.id,
         name: data.user.name,
@@ -261,18 +289,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         plan: data.user.plan || "Free",
       };
 
-      // 6. Store session
       localStorage.setItem("token", data.token);
-
       localStorage.setItem("user", JSON.stringify(userData));
-
-      // 7. Set state
       setUser(userData);
 
       return userData;
     } catch (error) {
       console.error("Google login error:", error);
-
       throw error;
     } finally {
       setLoading(false);
@@ -297,20 +320,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // 3. Sign out until verified
       await signOut(auth);
 
-      // 3. Save user in backend
-      const response = await fetch(`${API_BASE_URL}/api/auth/signup`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name,
-          email: sanitizedEmail,
-          password,
-        }),
-      });
+      let response: Response;
+      try {
+        response = await fetch(`${API_BASE_URL}/api/auth/signup`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name,
+            email: sanitizedEmail,
+            password,
+          }),
+        });
+      } catch (networkErr) {
+        throw new Error(
+          `Cannot reach the server at ${API_BASE_URL}. Make sure the backend is running.`,
+        );
+      }
 
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
         throw new Error(data.message || "Signup failed");
