@@ -36,27 +36,6 @@ export function WritingPractice() {
     setAiScore(null);
   }, [currentQuestion]);
 
-  useEffect(() => {
-    if (!isSubmitted && timeLeft > 0) {
-      const timer = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            handleAutoSubmit();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-      return () => clearInterval(timer);
-    }
-  }, [timeLeft, isSubmitted]);
-
-  const handleAutoSubmit = () => {
-    if (answer.trim()) {
-      handleSubmit();
-    }
-  };
-
   const handleSubmit = () => {
     if (wordCount < question.wordLimit.min || wordCount > question.wordLimit.max) {
       toast.error(`Word count must be between ${question.wordLimit.min} and ${question.wordLimit.max} words`);
@@ -86,6 +65,32 @@ export function WritingPractice() {
       });
     }, 2000);
   };
+
+  const handleAutoSubmit = () => {
+    if (answer.trim()) {
+      handleSubmit();
+    }
+  };
+
+  useEffect(() => {
+    if (isSubmitted) return;
+    const interval = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isSubmitted, currentQuestion]);
+
+  useEffect(() => {
+    if (timeLeft <= 0 && !isSubmitted) {
+      handleAutoSubmit();
+    }
+  }, [timeLeft, isSubmitted]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);

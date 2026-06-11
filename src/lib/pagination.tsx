@@ -1,5 +1,5 @@
 export function escapeRegExp(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return str.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 }
 
 export function highlightText(text: string | undefined | null, search: string): JSX.Element {
@@ -14,15 +14,16 @@ export function highlightText(text: string | undefined | null, search: string): 
 
   return (
     <>
-      {parts.map((part, i) =>
-        regex.test(part) ? (
-          <mark key={i} className="bg-yellow-200 dark:bg-yellow-800/80 text-gray-900 dark:text-white rounded-sm px-0.5">
+      {parts.map((part, i) => {
+        const uniqueKey = `highlight-${part}-${i}`;
+        return regex.test(part) ? (
+          <mark key={uniqueKey} className="bg-yellow-200 dark:bg-yellow-800/80 text-gray-900 dark:text-white rounded-sm px-0.5">
             {part}
           </mark>
         ) : (
           part
-        )
-      )}
+        );
+      })}
     </>
   );
 }

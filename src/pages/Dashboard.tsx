@@ -11,49 +11,74 @@ export function Dashboard() {
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [dbTests, setDbTests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const token = localStorage.getItem("token");
+      
+      const [dashRes, testsRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/auth/dashboard`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }),
+        fetch(`${API_BASE_URL}/api/mock-tests`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+      ]);
+
+      if (dashRes.status === 401 || testsRes.status === 401) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        window.location.reload();
+        return;
+      }
+
+      if (!dashRes.ok || !testsRes.ok) {
+        throw new Error("Failed to fetch dashboard data from server");
+      }
+
+      const [dashData, testsData] = await Promise.all([
+        dashRes.json(),
+        testsRes.json()
+      ]);
+
+      setDashboardData(dashData);
+      setDbTests(testsData || []);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Failed to load statistics. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setLoading(true);
-        const token = localStorage.getItem("token");
-        
-        const [dashRes, testsRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/api/auth/dashboard`, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }),
-          fetch(`${API_BASE_URL}/api/mock-tests`, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          })
-        ]);
-
-        if (dashRes.status === 401 || testsRes.status === 401) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-          window.location.reload();
-          return;
-        }
-
-        const [dashData, testsData] = await Promise.all([
-          dashRes.ok ? dashRes.json() : null,
-          testsRes.ok ? testsRes.json() : []
-        ]);
-
-        setDashboardData(dashData);
-        setDbTests(testsData || []);
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchDashboardData();
   }, []);
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pt-20 px-4 pb-12 flex items-center justify-center">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-8 shadow-lg border border-gray-200 dark:border-gray-700 max-w-md w-full text-center">
+          <TrendingUp className="h-16 w-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold mb-2 text-gray-900 dark:text-white">Something went wrong</h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">{error}</p>
+          <button
+            onClick={fetchDashboardData}
+            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all shadow-md hover:shadow-lg"
+          >
+            Retry Loading
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

@@ -20,6 +20,14 @@ describe("pagination utils", () => {
       expect(buildPageList(3, 7)).toEqual([1, 2, 3, 4, 5, 6, 7]);
     });
 
+    test("returns single-page list when totalPages is 1", () => {
+      expect(buildPageList(1, 1)).toEqual([1]);
+    });
+
+    test("returns empty list when totalPages is 0", () => {
+      expect(buildPageList(0, 0)).toEqual([]);
+    });
+
     test("generates start ellipsis correctly when page is close to end", () => {
       // currentPage = 9, totalPages = 10 -> left = Math.max(2, 8) = 8, right = Math.min(9, 10) = 9
       // pages should have 1, 'ellipsis', 8, 9, 10
@@ -59,6 +67,29 @@ describe("pagination utils", () => {
       expect(parts[1].props.children).toBe("Aloud");
       expect(parts[1].props.className).toContain("bg-yellow-200");
       expect(parts[2]).toBe(" and Repeat");
+    });
+
+    test("does not crash when text is undefined", () => {
+      expect(() => highlightText(undefined as any, "x")).not.toThrow();
+      const result = highlightText(undefined as any, "");
+      expect(result.type).toBe("span");
+      expect(result.props.children).toBe("");
+    });
+
+    test("short-circuits when search query is empty", () => {
+      const result = highlightText("anything", "");
+      expect(result.type).toBe("span");
+      expect(result.props.children).toBe("anything");
+    });
+
+    test("uses escaped regex characters safely", () => {
+      const result = highlightText("price is $5.00 today", "$5.00");
+      const parts = result.props.children;
+      const marks = parts.filter(
+        (p: any) => p && typeof p === "object" && p.type === "mark",
+      );
+      expect(marks.length).toBeGreaterThanOrEqual(1);
+      expect(marks[0].props.children).toBe("$5.00");
     });
   });
 });
