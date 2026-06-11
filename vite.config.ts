@@ -25,7 +25,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
-base: '/Exam-Prep-Platform/',
+  base: '/Exam-Prep-Platform/',
   resolve: {
     alias: {
       // Alias @ to the src directory
@@ -39,5 +39,9 @@ base: '/Exam-Prep-Platform/',
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
+    coverage: {
+      reporter: ['text', 'html', 'lcov'],
+      clean: false
+    }
   },
 })

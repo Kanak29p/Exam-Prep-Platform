@@ -94,6 +94,92 @@ export function AdminPanel() {
   const [broadcasting, setBroadcasting] = useState(false);
   const [subscribersCount, setSubscribersCount] = useState(0);
 
+  // Question Management CRUD States
+  interface QuestionItem {
+    id: string;
+    title: string;
+    category: string;
+    difficulty: string;
+    questionText: string;
+    correctAnswer: string;
+  }
+  const [questionsList, setQuestionsList] = useState<QuestionItem[]>([
+    { id: "q1", title: "Read Aloud - Practice 1", category: "Speaking", difficulty: "Medium", questionText: "The quick brown fox jumps over the lazy dog.", correctAnswer: "The quick brown fox jumps over the lazy dog." },
+    { id: "q2", title: "Write Essay - Technology", category: "Writing", difficulty: "Hard", questionText: "Some people believe that technology has made our lives more complex.", correctAnswer: "" }
+  ]);
+  const [isQuestionFormOpen, setIsQuestionFormOpen] = useState(false);
+  const [editingQuestion, setEditingQuestion] = useState<QuestionItem | null>(null);
+  const [formTitle, setFormTitle] = useState("");
+  const [formCategory, setFormCategory] = useState("Speaking");
+  const [formDifficulty, setFormDifficulty] = useState("Medium");
+  const [formText, setFormText] = useState("");
+  const [formAnswer, setFormAnswer] = useState("");
+  const [validationError, setValidationError] = useState("");
+  const [deletingQuestionId, setDeletingQuestionId] = useState<string | null>(null);
+
+  const resetQuestionForm = () => {
+    setFormTitle("");
+    setFormCategory("Speaking");
+    setFormDifficulty("Medium");
+    setFormText("");
+    setFormAnswer("");
+    setValidationError("");
+    setIsQuestionFormOpen(false);
+    setEditingQuestion(null);
+  };
+
+  const handleQuestionSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!formTitle.trim() || !formText.trim()) {
+      setValidationError("Title and Question Text are required fields.");
+      return;
+    }
+
+    if (editingQuestion) {
+      // Edit mode
+      setQuestionsList(prev => prev.map(q => q.id === editingQuestion.id ? {
+        ...q,
+        title: formTitle,
+        category: formCategory,
+        difficulty: formDifficulty,
+        questionText: formText,
+        correctAnswer: formAnswer
+      } : q));
+      toast.success("Question updated successfully!");
+    } else {
+      // Add mode
+      const newQuestion: QuestionItem = {
+        id: `q_${Date.now()}`,
+        title: formTitle,
+        category: formCategory,
+        difficulty: formDifficulty,
+        questionText: formText,
+        correctAnswer: formAnswer
+      };
+      setQuestionsList(prev => [...prev, newQuestion]);
+      toast.success("Question added successfully!");
+    }
+    resetQuestionForm();
+  };
+
+  const startEditQuestion = (q: QuestionItem) => {
+    setEditingQuestion(q);
+    setFormTitle(q.title);
+    setFormCategory(q.category);
+    setFormDifficulty(q.difficulty);
+    setFormText(q.questionText);
+    setFormAnswer(q.correctAnswer);
+    setIsQuestionFormOpen(true);
+  };
+
+  const confirmDeleteQuestion = () => {
+    if (deletingQuestionId) {
+      setQuestionsList(prev => prev.filter(q => q.id !== deletingQuestionId));
+      toast.success("Question deleted successfully!");
+      setDeletingQuestionId(null);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === "notifications") {
       const fetchSubscribers = async () => {
@@ -116,7 +202,7 @@ export function AdminPanel() {
     }
   }, [activeTab]);
 
-  const handleBroadcastSubmit = async (e: React.FormEvent) => {
+  const handleBroadcastSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!broadcastTitle.trim() || !broadcastBody.trim()) {
       toast.error("Please fill in all required fields.");
@@ -418,14 +504,117 @@ export function AdminPanel() {
 
             {/* Questions Tab */}
             {activeTab === "questions" && (
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-bold">Question Bank</h3>
-                  <button className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:shadow-lg transition-all flex items-center gap-2">
-                    <Plus className="h-5 w-5" />
-                    Add Question
-                  </button>
+                  <h3 className="text-xl font-bold">Question Bank Management</h3>
+                  {!isQuestionFormOpen && (
+                    <button
+                      onClick={() => {
+                        resetQuestionForm();
+                        setIsQuestionFormOpen(true);
+                      }}
+                      className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:shadow-lg transition-all flex items-center gap-2"
+                    >
+                      <Plus className="h-5 w-5" />
+                      Add Question
+                    </button>
+                  )}
                 </div>
+
+                {isQuestionFormOpen && (
+                  <div className="bg-gray-50 dark:bg-gray-750 p-6 rounded-xl border border-gray-200 dark:border-gray-700 space-y-4">
+                    <h4 className="text-lg font-bold text-gray-900 dark:text-white">
+                      {editingQuestion ? "Edit Question" : "Add New Question"}
+                    </h4>
+                    {validationError && (
+                      <div className="p-3 bg-red-100 dark:bg-red-900/20 text-red-600 rounded-lg text-sm font-semibold">
+                        {validationError}
+                      </div>
+                    )}
+                    <form onSubmit={handleQuestionSubmit} className="space-y-4">
+                      <div className="grid md:grid-cols-3 gap-4">
+                        <div>
+                          <label htmlFor="question-title-input" className="block text-sm font-semibold mb-2">Title</label>
+                          <input
+                            id="question-title-input"
+                            type="text"
+                            value={formTitle}
+                            onChange={(e) => setFormTitle(e.target.value)}
+                            placeholder="e.g. Read Aloud - Climate Change"
+                            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 bg-white"
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor="question-category-select" className="block text-sm font-semibold mb-2">Category</label>
+                          <select
+                            id="question-category-select"
+                            value={formCategory}
+                            onChange={(e) => setFormCategory(e.target.value)}
+                            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 bg-white"
+                          >
+                            <option value="Speaking">Speaking</option>
+                            <option value="Writing">Writing</option>
+                            <option value="Reading">Reading</option>
+                            <option value="Listening">Listening</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label htmlFor="question-difficulty-select" className="block text-sm font-semibold mb-2">Difficulty</label>
+                          <select
+                            id="question-difficulty-select"
+                            value={formDifficulty}
+                            onChange={(e) => setFormDifficulty(e.target.value)}
+                            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 bg-white"
+                          >
+                            <option value="Easy">Easy</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Hard">Hard</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label htmlFor="question-text-textarea" className="block text-sm font-semibold mb-2">Question Text</label>
+                        <textarea
+                          id="question-text-textarea"
+                          rows={3}
+                          value={formText}
+                          onChange={(e) => setFormText(e.target.value)}
+                          placeholder="Type question prompt text here..."
+                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 bg-white"
+                        />
+                      </div>
+
+                      <div>
+                        <label htmlFor="question-answer-input" className="block text-sm font-semibold mb-2">Correct Answer (Optional)</label>
+                        <input
+                          id="question-answer-input"
+                          type="text"
+                          value={formAnswer}
+                          onChange={(e) => setFormAnswer(e.target.value)}
+                          placeholder="Type correct answer or transcript keywords..."
+                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 bg-white"
+                        />
+                      </div>
+
+                      <div className="flex gap-4">
+                        <button
+                          type="submit"
+                          className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-all"
+                        >
+                          Save Question
+                        </button>
+                        <button
+                          type="button"
+                          onClick={resetQuestionForm}
+                          className="px-6 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-650 text-gray-800 dark:text-white rounded-lg font-semibold transition-all"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                )}
 
                 <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
                   {[
@@ -448,6 +637,94 @@ export function AdminPanel() {
                     </div>
                   ))}
                 </div>
+
+                {/* Questions List */}
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-200 dark:border-gray-700 overflow-hidden animate-fade-in">
+                  <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-750">
+                    <h4 className="font-bold">Active Questions</h4>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead className="bg-gray-100 dark:bg-gray-700 text-xs font-semibold uppercase text-gray-600 dark:text-gray-400">
+                        <tr>
+                          <th className="px-6 py-3">Title</th>
+                          <th className="px-6 py-3">Category</th>
+                          <th className="px-6 py-3">Difficulty</th>
+                          <th className="px-6 py-3 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+                        {questionsList.map(q => {
+                          let difficultyClass = "bg-red-100 dark:bg-red-900/30 text-red-600";
+                          if (q.difficulty === "Easy") {
+                            difficultyClass = "bg-green-100 dark:bg-green-900/30 text-green-600";
+                          } else if (q.difficulty === "Medium") {
+                            difficultyClass = "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600";
+                          }
+                          return (
+                            <tr key={q.id} className="hover:bg-gray-50 dark:hover:bg-gray-750">
+                              <td className="px-6 py-4 font-semibold">{q.title}</td>
+                              <td className="px-6 py-4">
+                                <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 text-xs rounded-full font-semibold">
+                                  {q.category}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4">
+                                <span className={`px-2 py-1 text-xs rounded-full font-semibold ${difficultyClass}`}>
+                                  {q.difficulty}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 text-right">
+                                <div className="flex justify-end gap-2">
+                                  <button
+                                    onClick={() => startEditQuestion(q)}
+                                    aria-label={`edit-${q.id}`}
+                                    className="p-1 hover:bg-gray-250 dark:hover:bg-gray-600 rounded text-gray-600 dark:text-gray-300"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => setDeletingQuestionId(q.id)}
+                                    aria-label={`delete-${q.id}`}
+                                    className="p-1 hover:bg-gray-250 dark:hover:bg-gray-600 rounded text-red-600"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Confirm Delete Modal */}
+                {deletingQuestionId && (
+                  <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-2xl border border-gray-200 dark:border-gray-700 max-w-sm w-full text-center animate-scale-in">
+                      <h4 className="text-lg font-bold mb-2 text-gray-900 dark:text-white">Delete Question</h4>
+                      <p className="text-gray-600 dark:text-gray-400 mb-6">
+                        Are you sure you want to delete this question? This action cannot be undone.
+                      </p>
+                      <div className="flex gap-4">
+                        <button
+                          onClick={confirmDeleteQuestion}
+                          className="flex-1 py-2 bg-red-650 hover:bg-red-700 text-white font-semibold rounded-lg transition-all"
+                        >
+                          Confirm Delete
+                        </button>
+                        <button
+                          onClick={() => setDeletingQuestionId(null)}
+                          className="flex-1 py-2 bg-gray-250 hover:bg-gray-350 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-850 dark:text-white font-semibold rounded-lg transition-all"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
