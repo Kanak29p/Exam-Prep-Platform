@@ -25,4 +25,25 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const provider = new GoogleAuthProvider();
-export const messaging = typeof window !== 'undefined' ? getMessaging(app) : null;
+
+let messagingInstance: any = null;
+try {
+  if (typeof window !== "undefined") {
+    // Check if the current browser supports the required APIs for Firebase Messaging
+    const isSupportedBrowser =
+      "serviceWorker" in navigator &&
+      "PushManager" in window &&
+      "Notification" in window;
+
+    // During test runs, allow fallback to support test mocks
+    const isTest = typeof process !== "undefined" && process.env.NODE_ENV === "test";
+
+    if (isSupportedBrowser || isTest) {
+      messagingInstance = getMessaging(app);
+    }
+  }
+} catch (error) {
+  console.warn("Firebase Messaging is not supported in this browser:", error);
+}
+
+export const messaging = messagingInstance;

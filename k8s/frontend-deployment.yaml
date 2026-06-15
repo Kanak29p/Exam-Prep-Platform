@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pte-frontend
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: pte-frontend
+
+  template:
+    metadata:
+      labels:
+        app: pte-frontend
+
+    spec:
+      containers:
+        - name: pte-frontend
+          image: 641759955915.dkr.ecr.ap-south-1.amazonaws.com/pte-frontend:v2
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - containerPort: 80

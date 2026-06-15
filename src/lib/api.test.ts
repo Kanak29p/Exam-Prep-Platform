@@ -7,7 +7,7 @@ describe("API_BASE_URL", () => {
     if (import.meta.env.VITE_API_BASE_URL) {
       expect(API_BASE_URL).toBe(import.meta.env.VITE_API_BASE_URL);
     } else {
-      expect(API_BASE_URL).toBe("http://localhost:5000");
+      expect(API_BASE_URL).toBe("http://localhost:5001");
     }
   });
 
