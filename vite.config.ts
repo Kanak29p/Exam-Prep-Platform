@@ -26,9 +26,11 @@ export default defineConfig({
     tailwindcss(),
   ],
   base:
-  process.env.VITE_DEPLOY_TARGET === 'github'
-    ? '/Exam-Prep-Platform/'
-    : '/',
+    process.env.VITE_DEPLOY_TARGET === 'github' ||
+    process.env.npm_lifecycle_event === 'deploy' ||
+    process.env.npm_lifecycle_event === 'predeploy'
+      ? '/Exam-Prep-Platform/'
+      : '/',
   resolve: {
     alias: {
       // Alias @ to the src directory

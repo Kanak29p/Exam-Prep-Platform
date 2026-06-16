@@ -7,7 +7,7 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite",
-    "predeploy": "npm run build",
+    "predeploy": "node -e \"process.env.VITE_DEPLOY_TARGET='github'; require('child_process').execSync('npm run build', {stdio: 'inherit'})\"",
     "deploy": "gh-pages -d dist",
     "test": "vitest",
     "test:run": "vitest run",
