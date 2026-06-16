@@ -31,7 +31,8 @@ try {
   if (typeof window !== "undefined") {
     // Check if the current browser supports the required APIs for Firebase Messaging
     const isSupportedBrowser =
-      "serviceWorker" in navigator &&
+      typeof navigator !== "undefined" &&
+      navigator.serviceWorker !== undefined &&
       "PushManager" in window &&
       "Notification" in window;
 

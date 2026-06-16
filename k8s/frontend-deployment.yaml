@@ -5,6 +5,8 @@ metadata:
 
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
 
   selector:
     matchLabels:
@@ -18,7 +20,7 @@ spec:
     spec:
       containers:
         - name: pte-frontend
-          image: 641759955915.dkr.ecr.ap-south-1.amazonaws.com/pte-frontend:v2
+          image: 641759955915.dkr.ecr.ap-south-1.amazonaws.com/pte-frontend:v3
           imagePullPolicy: IfNotPresent
 
           ports:
