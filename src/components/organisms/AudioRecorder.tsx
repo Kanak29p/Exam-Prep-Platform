@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { supabase } from "../../lib/supabase";
+import { API_BASE_URL } from "../../lib/api";
 import { toast } from "sonner";
 import { Mic, Square, RotateCcw, UploadCloud, CheckCircle2, Loader2 } from "lucide-react";
 
@@ -171,7 +171,7 @@ export function AudioRecorder({
     }
   };
 
-  // Upload to Supabase
+  // Upload to Backend
   const uploadAudio = async () => {
     if (!audioBlob) {
       toast.error("No recorded audio found. Please record first.");
@@ -181,27 +181,32 @@ export function AudioRecorder({
     setIsUploading(true);
     try {
       const fileName = `${Date.now()}.mp3`;
+      const token = localStorage.getItem("token");
 
-      const { error } = await supabase.storage
-        .from("audio-recordings")
-        .upload(fileName, audioBlob, {
-          contentType: "audio/mpeg",
-          cacheControl: "3600"
-        });
+      const formData = new FormData();
+      formData.append("audio", audioBlob, fileName);
 
-      if (error) {
-        throw error;
+      const response = await fetch(`${API_BASE_URL}/api/questions/upload`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to upload recording.");
       }
 
-      const { data: publicUrlData } = supabase.storage
-        .from("audio-recordings")
-        .getPublicUrl(fileName);
+      const data = await response.json();
+      const publicUrl = data.url;
 
       setIsUploaded(true);
       toast.success("Answer submitted successfully!");
 
       if (onUploadSuccess) {
-        onUploadSuccess(publicUrlData.publicUrl, transcript);
+        onUploadSuccess(publicUrl, transcript);
       }
     } catch (error: any) {
       console.error("Upload error:", error);

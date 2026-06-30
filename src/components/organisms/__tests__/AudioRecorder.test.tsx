@@ -4,6 +4,7 @@ import { render, screen, fireEvent, waitFor, act } from "@testing-library/react"
 const mocks = vi.hoisted(() => {
   const uploadMock = vi.fn();
   const getPublicUrlMock = vi.fn();
+  const fetchMock = vi.fn();
   class MockSpeechRecognition {
     continuous = false;
     interimResults = false;
@@ -19,7 +20,8 @@ const mocks = vi.hoisted(() => {
   }
   (globalThis as any).SpeechRecognition = MockSpeechRecognition;
   (globalThis as any).webkitSpeechRecognition = MockSpeechRecognition;
-  return { uploadMock, getPublicUrlMock, MockSpeechRecognition };
+  (globalThis as any).fetch = fetchMock;
+  return { uploadMock, getPublicUrlMock, fetchMock, MockSpeechRecognition };
 });
 
 vi.mock("../../../lib/supabase", () => ({
@@ -62,6 +64,7 @@ class FakeMediaRecorder {
 beforeEach(() => {
   mocks.uploadMock.mockReset();
   mocks.getPublicUrlMock.mockReset();
+  mocks.fetchMock.mockReset();
   FakeMediaRecorder.instances = [];
   mocks.MockSpeechRecognition.instances = [];
   (globalThis as any).MediaRecorder = FakeMediaRecorder as any;
@@ -115,11 +118,11 @@ describe("AudioRecorder", () => {
     ).toBeInTheDocument();
   });
 
-  it("uploads to supabase and triggers onUploadSuccess", async () => {
+  it("uploads to backend and triggers onUploadSuccess", async () => {
     const { toast } = await import("sonner");
-    mocks.uploadMock.mockResolvedValueOnce({ error: null });
-    mocks.getPublicUrlMock.mockReturnValueOnce({
-      data: { publicUrl: "https://example.com/audio.mp3" },
+    mocks.fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ url: "https://example.com/audio.mp3" }),
     });
     const onUpload = vi.fn();
 
@@ -154,10 +157,11 @@ describe("AudioRecorder", () => {
     );
   });
 
-  it("toasts error when supabase upload fails", async () => {
+  it("toasts error when backend upload fails", async () => {
     const { toast } = await import("sonner");
-    mocks.uploadMock.mockResolvedValueOnce({
-      error: { message: "Upload failed" },
+    mocks.fetchMock.mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ message: "Upload failed" }),
     });
     const errSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
